@@ -38,7 +38,8 @@ const SellTab = () => {
   };
 
   // Long press handlers
-  const handleTouchStart = (product) => {
+  const handleTouchStart = (e, product) => {
+    e.preventDefault(); // Prevent mouse events from firing
     longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(50);
@@ -49,7 +50,8 @@ const SellTab = () => {
     }, 500);
   };
 
-  const handleTouchEnd = (product) => {
+  const handleTouchEnd = (e, product) => {
+    e.preventDefault(); // Prevent mouse events from firing
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
@@ -139,10 +141,10 @@ const SellTab = () => {
                       <button
                         key={product.id}
                         className={`product-btn ${!available ? 'disabled' : ''}`}
-                        onTouchStart={() => handleTouchStart(product)}
-                        onTouchEnd={() => handleTouchEnd(product)}
-                        onMouseDown={() => handleTouchStart(product)}
-                        onMouseUp={() => handleTouchEnd(product)}
+                        onTouchStart={(e) => handleTouchStart(e, product)}
+                        onTouchEnd={(e) => handleTouchEnd(e, product)}
+                        onMouseDown={(e) => handleTouchStart(e, product)}
+                        onMouseUp={(e) => handleTouchEnd(e, product)}
                         onMouseLeave={() => {
                           if (longPressTimer.current) {
                             clearTimeout(longPressTimer.current);
