@@ -1,0 +1,18 @@
+{
+  "name": "Quick Store POS",
+  "short_name": "Quick Store",
+  "description": "Offline Point of Sale System for Small Businesses",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#667eea",
+  "orientation": "portrait",
+  "icons": [
+    {
+      "src": "/vite.svg",
+      "sizes": "any",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ]
+}
