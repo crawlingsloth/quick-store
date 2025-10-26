@@ -3,7 +3,7 @@ import { useApp } from '../context/AppContext';
 import './ProductsTab.css';
 
 const ProductsTab = () => {
-  const { getCurrentStore, addProduct, updateProduct, deleteProduct, updateStore } = useApp();
+  const { getCurrentStore, addProduct, updateProduct, deleteProduct, updateStore, currencySymbol } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingProduct, setEditingProduct] = useState(null);
@@ -123,7 +123,7 @@ const ProductsTab = () => {
                 <div key={product.id} className="product-item">
                   <div className="product-info">
                     <div className="product-name">{product.name}</div>
-                    <div className="product-price">${product.price.toFixed(2)}</div>
+                    <div className="product-price">{currencySymbol}{product.price.toFixed(2)}</div>
                     {store.trackInventory && (
                       <div className={`product-inventory ${product.inventory < 10 ? 'low-stock' : ''}`}>
                         Stock: {product.inventory}
@@ -171,7 +171,7 @@ const ProductsTab = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="productPrice">Price ($)</label>
+                <label htmlFor="productPrice">Price ({currencySymbol})</label>
                 <input
                   id="productPrice"
                   type="number"
@@ -246,7 +246,7 @@ const ProductsTab = () => {
               </div>
 
               <div className="form-group">
-                <label htmlFor="editProductPrice">Price ($)</label>
+                <label htmlFor="editProductPrice">Price ({currencySymbol})</label>
                 <input
                   id="editProductPrice"
                   type="number"

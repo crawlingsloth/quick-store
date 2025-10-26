@@ -1,15 +1,21 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
 import './HomeScreen.css';
 
 const HomeScreen = () => {
-  const { stores, selectStore, createStore, deleteStore } = useApp();
+  const { stores, selectStore, createStore, deleteStore, currencySymbol, updateCurrencySymbol } = useApp();
   const [showAddModal, setShowAddModal] = useState(false);
   const [newStoreName, setNewStoreName] = useState('');
   const [trackInventory, setTrackInventory] = useState(false);
   const [showSettings, setShowSettings] = useState(false);
+  const [tempCurrency, setTempCurrency] = useState(currencySymbol);
 
   const storeList = Object.values(stores);
+
+  // Update tempCurrency when currencySymbol changes
+  useEffect(() => {
+    setTempCurrency(currencySymbol);
+  }, [currencySymbol]);
 
   const handleCreateStore = (e) => {
     e.preventDefault();
@@ -34,6 +40,12 @@ const HomeScreen = () => {
     }
   };
 
+  const handleCurrencyChange = (e) => {
+    const value = e.target.value;
+    setTempCurrency(value);
+    updateCurrencySymbol(value);
+  };
+
   return (
     <div className="home-screen">
       <div className="home-header">
@@ -49,6 +61,20 @@ const HomeScreen = () => {
 
       {showSettings && (
         <div className="settings-panel">
+          <div className="form-group">
+            <label htmlFor="currencySymbol">Currency Symbol</label>
+            <input
+              id="currencySymbol"
+              type="text"
+              value={tempCurrency}
+              onChange={handleCurrencyChange}
+              placeholder="e.g., $, €, £, ¥, ₹"
+              maxLength={3}
+            />
+            <p className="hint" style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: '#6b7280' }}>
+              Common: $ (USD), € (Euro), £ (Pound), ¥ (Yen), ₹ (Rupee), R (Rand)
+            </p>
+          </div>
           <button
             className="danger-btn"
             onClick={handleClearAllData}

@@ -17,15 +17,29 @@ export const AppProvider = ({ children }) => {
   const [currentScreen, setCurrentScreen] = useState('home'); // 'home' | 'store'
   const [cart, setCart] = useState([]);
   const [refreshTrigger, setRefreshTrigger] = useState(0);
+  const [currencySymbol, setCurrencySymbol] = useState('$');
 
-  // Load stores from localStorage on mount
+  // Load stores and settings from localStorage on mount
   useEffect(() => {
     loadStores();
+    loadSettings();
   }, [refreshTrigger]);
 
   const loadStores = () => {
     const loadedStores = storage.getAllStores();
     setStores(loadedStores);
+  };
+
+  const loadSettings = () => {
+    const savedCurrency = localStorage.getItem('currencySymbol');
+    if (savedCurrency) {
+      setCurrencySymbol(savedCurrency);
+    }
+  };
+
+  const updateCurrencySymbol = (symbol) => {
+    setCurrencySymbol(symbol);
+    localStorage.setItem('currencySymbol', symbol);
   };
 
   const refresh = () => {
@@ -207,6 +221,7 @@ export const AppProvider = ({ children }) => {
     currentStoreId,
     currentScreen,
     cart,
+    currencySymbol,
 
     // Store operations
     createStore,
@@ -239,6 +254,9 @@ export const AppProvider = ({ children }) => {
     deleteOrder,
     getTodayOrders,
     clearTodayOrders,
+
+    // Settings
+    updateCurrencySymbol,
 
     // Utility
     refresh,

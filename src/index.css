@@ -225,3 +225,35 @@ button:disabled {
 ::-webkit-scrollbar-thumb:hover {
   background: #9ca3af;
 }
+
+/* Desktop Responsive Styles */
+@media (min-width: 1024px) {
+  /* Better typography for desktop */
+  body {
+    font-size: 1.0625rem;
+  }
+
+  /* Larger modals on desktop */
+  .modal {
+    max-width: 500px;
+  }
+
+  /* Better button sizing on desktop */
+  .btn-primary,
+  .btn-secondary {
+    min-height: 40px;
+    padding: 0.625rem 1.25rem;
+  }
+
+  /* Remove mobile-specific optimizations on desktop */
+  :root {
+    touch-action: auto;
+  }
+}
+
+@media (min-width: 1280px) {
+  /* Even larger modals on large desktop screens */
+  .modal {
+    max-width: 600px;
+  }
+}

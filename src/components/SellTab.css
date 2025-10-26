@@ -334,6 +334,49 @@
   color: #9ca3af;
 }
 
+/* Customer Name Suggestions */
+.customer-suggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  background: white;
+  border: 2px solid #667eea;
+  border-top: none;
+  border-radius: 0 0 8px 8px;
+  box-shadow: 0 4px 12px rgba(0, 0, 0, 0.15);
+  max-height: 200px;
+  overflow-y: auto;
+  z-index: 10;
+  margin-top: -2px;
+}
+
+.customer-suggestion-item {
+  width: 100%;
+  padding: 0.75rem 1rem;
+  background: white;
+  border: none;
+  border-bottom: 1px solid #f3f4f6;
+  text-align: left;
+  cursor: pointer;
+  font-size: 1rem;
+  color: #1f2937;
+  transition: background 0.2s;
+  min-height: 44px;
+}
+
+.customer-suggestion-item:last-child {
+  border-bottom: none;
+}
+
+.customer-suggestion-item:hover {
+  background: #f9fafb;
+}
+
+.customer-suggestion-item:active {
+  background: #ede9fe;
+}
+
 @media (max-width: 640px) {
   .combos-grid,
   .products-grid {
@@ -349,5 +392,70 @@
 
   .cart {
     max-height: 60vh;
+  }
+}
+
+/* Desktop Layout - Side by Side */
+@media (min-width: 1024px) {
+  .sell-tab {
+    flex-direction: row;
+    height: calc(100vh - 120px);
+  }
+
+  .products-grid-container {
+    width: 70%;
+    border-right: 2px solid #e5e7eb;
+    padding: 1.5rem;
+  }
+
+  .combos-grid,
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 1rem;
+  }
+
+  .product-btn,
+  .combo-btn {
+    padding: 1.5rem 1.25rem;
+    min-height: 140px;
+  }
+
+  .product-btn-name,
+  .combo-name {
+    font-size: 1rem;
+  }
+
+  .product-btn-price,
+  .combo-price {
+    font-size: 1.375rem;
+  }
+
+  .cart {
+    width: 30%;
+    max-height: none;
+    height: 100%;
+    border-top: none;
+    border-left: 3px solid #667eea;
+    box-shadow: -4px 0 12px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@media (min-width: 1280px) {
+  .products-grid-container {
+    width: 75%;
+  }
+
+  .combos-grid,
+  .products-grid {
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  }
+
+  .cart {
+    width: 25%;
+  }
+
+  .customer-suggestion-item:hover {
+    transform: translateY(-1px);
+    box-shadow: 0 1px 4px rgba(0, 0, 0, 0.1);
   }
 }

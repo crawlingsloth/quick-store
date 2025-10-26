@@ -5,7 +5,7 @@ import * as storage from '../utils/storage';
 import './HistoryTab.css';
 
 const HistoryTab = () => {
-  const { getCurrentStore, getTodayOrders, updateOrder, deleteOrder, clearTodayOrders } = useApp();
+  const { getCurrentStore, getTodayOrders, updateOrder, deleteOrder, clearTodayOrders, currencySymbol } = useApp();
   const [showEditModal, setShowEditModal] = useState(false);
   const [editingOrder, setEditingOrder] = useState(null);
   const [editItems, setEditItems] = useState([]);
@@ -63,7 +63,7 @@ const HistoryTab = () => {
   };
 
   const handleExportSummary = async () => {
-    const success = await exportTodayAsSummary(store.name, orders);
+    const success = await exportTodayAsSummary(store.name, orders, currencySymbol);
     if (success) {
       alert('Summary copied to clipboard!');
     } else {
@@ -93,7 +93,7 @@ const HistoryTab = () => {
             <div className="stat-label">Orders</div>
           </div>
           <div className="stat">
-            <div className="stat-value">${totalRevenue.toFixed(2)}</div>
+            <div className="stat-value">{currencySymbol}{totalRevenue.toFixed(2)}</div>
             <div className="stat-label">Revenue</div>
           </div>
         </div>
@@ -144,14 +144,14 @@ const HistoryTab = () => {
                       <span>
                         {item.quantity}× {item.productName}
                       </span>
-                      <span>${(item.price * item.quantity).toFixed(2)}</span>
+                      <span>{currencySymbol}{(item.price * item.quantity).toFixed(2)}</span>
                     </div>
                   ))}
                 </div>
 
                 <div className="order-total">
                   <strong>Total</strong>
-                  <strong>${order.total.toFixed(2)}</strong>
+                  <strong>{currencySymbol}{order.total.toFixed(2)}</strong>
                 </div>
 
                 <div className="order-actions">
@@ -202,7 +202,7 @@ const HistoryTab = () => {
                       <div className="edit-item-info">
                         <div>{item.productName}</div>
                         <div className="edit-item-price">
-                          ${item.price.toFixed(2)} each
+                          {currencySymbol}{item.price.toFixed(2)} each
                         </div>
                       </div>
                       <div className="edit-item-controls">
@@ -231,7 +231,7 @@ const HistoryTab = () => {
                 <div className="edit-total">
                   <strong>New Total:</strong>
                   <strong>
-                    ${editItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
+                    {currencySymbol}{editItems.reduce((sum, item) => sum + item.price * item.quantity, 0).toFixed(2)}
                   </strong>
                 </div>
               )}

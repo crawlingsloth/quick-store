@@ -1,5 +1,6 @@
 import { useState, useRef } from 'react';
 import { useApp } from '../context/AppContext';
+import { searchCustomerNames } from '../utils/storage';
 import './SellTab.css';
 
 const SellTab = () => {
@@ -12,10 +13,13 @@ const SellTab = () => {
     clearCart,
     getCartTotal,
     createOrder,
+    currencySymbol,
   } = useApp();
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [customQuantity, setCustomQuantity] = useState('1');
@@ -84,6 +88,29 @@ const SellTab = () => {
   const handleCancelCheckout = () => {
     setShowCheckout(false);
     setCustomerName('');
+    setCustomerSuggestions([]);
+    setShowSuggestions(false);
+  };
+
+  const handleCustomerNameChange = (e) => {
+    const value = e.target.value;
+    setCustomerName(value);
+
+    // Search for suggestions
+    if (value.trim()) {
+      const suggestions = searchCustomerNames(value);
+      setCustomerSuggestions(suggestions);
+      setShowSuggestions(suggestions.length > 0);
+    } else {
+      setCustomerSuggestions([]);
+      setShowSuggestions(false);
+    }
+  };
+
+  const handleSelectSuggestion = (name) => {
+    setCustomerName(name);
+    setCustomerSuggestions([]);
+    setShowSuggestions(false);
   };
 
   // Group products by category
@@ -122,7 +149,7 @@ const SellTab = () => {
                       }}
                     >
                       <div className="combo-name">{combo.name}</div>
-                      <div className="combo-price">${combo.totalPrice.toFixed(2)}</div>
+                      <div className="combo-price">{currencySymbol}{combo.totalPrice.toFixed(2)}</div>
                     </button>
                   ))}
                 </div>
@@ -153,7 +180,7 @@ const SellTab = () => {
                         disabled={!available}
                       >
                         <div className="product-btn-name">{product.name}</div>
-                        <div className="product-btn-price">${product.price.toFixed(2)}</div>
+                        <div className="product-btn-price">{currencySymbol}{product.price.toFixed(2)}</div>
                         {stock !== null && (
                           <div className={`product-btn-stock ${stock < 10 ? 'low' : ''}`}>
                             {stock === 0 ? 'Out of stock' : `Stock: ${stock}`}
@@ -183,7 +210,7 @@ const SellTab = () => {
                     <div className="cart-item-info">
                       <div className="cart-item-name">{item.productName}</div>
                       <div className="cart-item-price">
-                        ${item.price.toFixed(2)} × {item.quantity} = $
+                        {currencySymbol}{item.price.toFixed(2)} × {item.quantity} = {currencySymbol}
                         {(item.price * item.quantity).toFixed(2)}
                       </div>
                     </div>
@@ -214,7 +241,7 @@ const SellTab = () => {
 
               <div className="cart-total">
                 <span>Total</span>
-                <span className="cart-total-amount">${getCartTotal().toFixed(2)}</span>
+                <span className="cart-total-amount">{currencySymbol}{getCartTotal().toFixed(2)}</span>
               </div>
 
               <button className="btn-checkout" onClick={() => setShowCheckout(true)}>
@@ -270,27 +297,49 @@ const SellTab = () => {
               {cart.map(item => (
                 <div key={item.productId} className="checkout-item">
                   <span>{item.quantity}× {item.productName}</span>
-                  <span>${(item.price * item.quantity).toFixed(2)}</span>
+                  <span>{currencySymbol}{(item.price * item.quantity).toFixed(2)}</span>
                 </div>
               ))}
               <div className="checkout-total">
                 <strong>Total</strong>
-                <strong>${getCartTotal().toFixed(2)}</strong>
+                <strong>{currencySymbol}{getCartTotal().toFixed(2)}</strong>
               </div>
             </div>
 
             <form onSubmit={handleCheckout}>
-              <div className="form-group">
+              <div className="form-group" style={{ position: 'relative' }}>
                 <label htmlFor="customerName">Customer Name</label>
                 <input
                   id="customerName"
                   type="text"
                   value={customerName}
-                  onChange={(e) => setCustomerName(e.target.value)}
+                  onChange={handleCustomerNameChange}
+                  onFocus={(e) => {
+                    if (e.target.value.trim()) {
+                      const suggestions = searchCustomerNames(e.target.value);
+                      setCustomerSuggestions(suggestions);
+                      setShowSuggestions(suggestions.length > 0);
+                    }
+                  }}
                   placeholder="Enter customer name"
                   autoFocus
+                  autoComplete="off"
                   required
                 />
+                {showSuggestions && customerSuggestions.length > 0 && (
+                  <div className="customer-suggestions">
+                    {customerSuggestions.map((suggestion, index) => (
+                      <button
+                        key={index}
+                        type="button"
+                        className="customer-suggestion-item"
+                        onClick={() => handleSelectSuggestion(suggestion)}
+                      >
+                        {suggestion}
+                      </button>
+                    ))}
+                  </div>
+                )}
               </div>
               <div className="modal-actions">
                 <button

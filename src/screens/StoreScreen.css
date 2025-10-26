@@ -22,7 +22,8 @@
   margin: 0;
 }
 
-.back-btn {
+.back-btn,
+.store-switch-btn {
   background: none;
   border: none;
   font-size: 1.5rem;
@@ -34,6 +35,18 @@
   align-items: center;
   justify-content: center;
   color: #667eea;
+  transition: transform 0.2s, background 0.2s;
+}
+
+.back-btn:hover,
+.store-switch-btn:hover {
+  background: #f3f4f6;
+  border-radius: 8px;
+}
+
+.back-btn:active,
+.store-switch-btn:active {
+  transform: scale(0.95);
 }
 
 .tabs {
@@ -98,4 +111,157 @@
   font-size: 1rem;
   cursor: pointer;
   min-height: 44px;
+}
+
+/* Store Switcher */
+.store-switcher-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(0, 0, 0, 0.5);
+  display: flex;
+  align-items: flex-start;
+  justify-content: center;
+  padding-top: 70px;
+  z-index: 1000;
+  animation: fadeIn 0.2s ease-in-out;
+}
+
+.store-switcher-menu {
+  background: white;
+  border-radius: 12px;
+  padding: 1rem;
+  max-width: 400px;
+  width: calc(100% - 2rem);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.2);
+  animation: slideDown 0.3s ease-out;
+}
+
+@keyframes slideDown {
+  from {
+    transform: translateY(-20px);
+    opacity: 0;
+  }
+  to {
+    transform: translateY(0);
+    opacity: 1;
+  }
+}
+
+.store-switcher-menu h3 {
+  margin: 0 0 1rem 0;
+  font-size: 1.125rem;
+  color: #1f2937;
+}
+
+.store-switcher-list {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  max-height: 60vh;
+  overflow-y: auto;
+}
+
+.store-switcher-item {
+  background: white;
+  border: 2px solid #e5e7eb;
+  border-radius: 8px;
+  padding: 1rem;
+  cursor: pointer;
+  text-align: left;
+  transition: all 0.2s;
+  min-height: 44px;
+}
+
+.store-switcher-item:hover:not(:disabled) {
+  border-color: #667eea;
+  background: #f9fafb;
+}
+
+.store-switcher-item:active:not(:disabled) {
+  transform: scale(0.98);
+}
+
+.store-switcher-item.active {
+  background: #ede9fe;
+  border-color: #667eea;
+  cursor: default;
+}
+
+.store-switcher-item:disabled {
+  opacity: 0.7;
+  cursor: not-allowed;
+}
+
+.store-switcher-name {
+  font-weight: 600;
+  color: #1f2937;
+  margin-bottom: 0.25rem;
+}
+
+.store-switcher-info {
+  font-size: 0.875rem;
+  color: #6b7280;
+}
+
+/* Desktop Enhancements */
+@media (min-width: 768px) {
+  .store-header {
+    padding: 1.25rem 2rem;
+  }
+
+  .store-header h1 {
+    font-size: 1.5rem;
+  }
+
+  .tabs {
+    top: 70px;
+  }
+
+  .tab {
+    padding: 1.25rem 1.5rem;
+    font-size: 1.0625rem;
+  }
+
+  .store-switcher-menu {
+    max-width: 500px;
+  }
+
+  .store-switcher-item:hover:not(:disabled) {
+    transform: translateY(-2px);
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+  }
+}
+
+@media (min-width: 1024px) {
+  .store-header {
+    padding: 1.5rem 3rem;
+  }
+
+  .store-header h1 {
+    font-size: 1.75rem;
+  }
+
+  .tab {
+    padding: 1.5rem 2rem;
+    transition: color 0.2s, border-color 0.2s, background 0.2s;
+  }
+
+  .tab:hover {
+    background: #f9fafb;
+  }
+
+  .tab.active:hover {
+    background: white;
+  }
+
+  .store-switcher-overlay {
+    padding-top: 90px;
+  }
+
+  .store-switcher-menu {
+    max-width: 600px;
+  }
 }

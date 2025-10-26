@@ -20,13 +20,13 @@ const formatTime = (isoString) => {
 };
 
 // Format currency
-const formatCurrency = (amount) => {
-  return `$${amount.toFixed(2)}`;
+const formatCurrency = (amount, currencySymbol = '$') => {
+  return `${currencySymbol}${amount.toFixed(2)}`;
 };
 
 // ============ TEXT SUMMARY FORMAT ============
 
-export const generateTextSummary = (storeName, orders, date = new Date()) => {
+export const generateTextSummary = (storeName, orders, date = new Date(), currencySymbol = '$') => {
   if (!orders || orders.length === 0) {
     return `Store: ${storeName}\nDate: ${formatDate(date.toISOString())}\n\nNo orders for this date.`;
   }
@@ -65,10 +65,10 @@ export const generateTextSummary = (storeName, orders, date = new Date()) => {
     .sort((a, b) => b[1].revenue - a[1].revenue);
 
   sortedItems.forEach(([productName, data]) => {
-    summary += `- ${productName}: ${data.quantity} units - ${formatCurrency(data.revenue)}\n`;
+    summary += `- ${productName}: ${data.quantity} units - ${formatCurrency(data.revenue, currencySymbol)}\n`;
   });
 
-  summary += `\nTotal Revenue: ${formatCurrency(totalRevenue)}`;
+  summary += `\nTotal Revenue: ${formatCurrency(totalRevenue, currencySymbol)}`;
 
   if (orders.some(order => order.isEdited)) {
     summary += `\n\n⚠️  Note: Some orders were edited after creation`;
@@ -120,7 +120,7 @@ export const generateCSV = (storeName, orders) => {
 
 // ============ DETAILED TEXT FORMAT ============
 
-export const generateDetailedText = (storeName, orders, date = new Date()) => {
+export const generateDetailedText = (storeName, orders, date = new Date(), currencySymbol = '$') => {
   if (!orders || orders.length === 0) {
     return `Store: ${storeName}\nDate: ${formatDate(date.toISOString())}\n\nNo orders for this date.`;
   }
@@ -144,16 +144,16 @@ export const generateDetailedText = (storeName, orders, date = new Date()) => {
     text += `Items:\n`;
 
     order.items.forEach(item => {
-      text += `  ${item.quantity}x ${item.productName} @ ${formatCurrency(item.price)} = ${formatCurrency(item.price * item.quantity)}\n`;
+      text += `  ${item.quantity}x ${item.productName} @ ${formatCurrency(item.price, currencySymbol)} = ${formatCurrency(item.price * item.quantity, currencySymbol)}\n`;
     });
 
-    text += `\nTotal: ${formatCurrency(order.total)}\n`;
+    text += `\nTotal: ${formatCurrency(order.total, currencySymbol)}\n`;
     text += `\n`;
   });
 
   const totalRevenue = orders.reduce((sum, order) => sum + order.total, 0);
   text += `${'='.repeat(50)}\n`;
-  text += `TOTAL REVENUE: ${formatCurrency(totalRevenue)}\n`;
+  text += `TOTAL REVENUE: ${formatCurrency(totalRevenue, currencySymbol)}\n`;
   text += `${'='.repeat(50)}\n`;
 
   return text;
@@ -213,8 +213,8 @@ export const downloadFile = (content, filename, mimeType = 'text/plain') => {
 
 // ============ EXPORT HELPERS ============
 
-export const exportTodayAsSummary = async (storeName, orders) => {
-  const summary = generateTextSummary(storeName, orders);
+export const exportTodayAsSummary = async (storeName, orders, currencySymbol = '$') => {
+  const summary = generateTextSummary(storeName, orders, new Date(), currencySymbol);
   return await copyToClipboard(summary);
 };
 
@@ -225,8 +225,8 @@ export const exportTodayAsCSV = (storeName, orders) => {
   return downloadFile(csv, filename, 'text/csv');
 };
 
-export const exportTodayAsDetailedText = (storeName, orders) => {
-  const text = generateDetailedText(storeName, orders);
+export const exportTodayAsDetailedText = (storeName, orders, currencySymbol = '$') => {
+  const text = generateDetailedText(storeName, orders, new Date(), currencySymbol);
   const dateStr = formatDate(new Date().toISOString()).replace(/\s+/g, '-');
   const filename = `${storeName}-${dateStr}.txt`;
   return downloadFile(text, filename, 'text/plain');

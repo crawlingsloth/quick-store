@@ -151,3 +151,65 @@
   font-size: 0.875rem;
   color: #9ca3af;
 }
+
+/* Desktop Enhancements */
+@media (min-width: 768px) {
+  .products-tab {
+    padding: 2rem;
+    max-width: 1200px;
+    margin: 0 auto;
+  }
+
+  .products-header {
+    margin-bottom: 1.5rem;
+  }
+
+  .category-group {
+    padding: 1.5rem;
+  }
+
+  .category-header {
+    font-size: 1.125rem;
+    margin-bottom: 1.25rem;
+  }
+
+  .product-item {
+    padding: 1.25rem;
+  }
+
+  .product-name {
+    font-size: 1.0625rem;
+  }
+
+  .product-price {
+    font-size: 1.25rem;
+  }
+}
+
+@media (min-width: 1024px) {
+  .products-tab {
+    padding: 2.5rem 3rem;
+  }
+
+  .products-list {
+    gap: 2rem;
+  }
+
+  .category-group {
+    padding: 2rem;
+  }
+
+  .product-item {
+    padding: 1.5rem;
+    transition: background 0.2s;
+  }
+
+  .product-item:hover {
+    background: #f9fafb;
+  }
+
+  .btn-edit:hover,
+  .btn-delete:hover {
+    transform: scale(1.05);
+  }
+}

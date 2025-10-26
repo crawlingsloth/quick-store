@@ -5,6 +5,7 @@ const STORAGE_KEYS = {
   STORES: 'quickstore_stores',
   ORDERS: 'quickstore_orders',
   SESSIONS: 'quickstore_sessions',
+  CUSTOMER_NAMES: 'quickstore_customer_names',
 };
 
 // Generate unique IDs
@@ -244,6 +245,9 @@ export const createOrder = (storeId, customerName, items) => {
   // Update or create today's session
   updateSession(storeId, newOrder.id);
 
+  // Save customer name for autocomplete
+  saveCustomerName(customerName);
+
   return newOrder;
 };
 
@@ -251,6 +255,11 @@ export const updateOrder = (orderId, updates) => {
   const orders = getAllOrders();
   if (orders[orderId]) {
     const oldOrder = { ...orders[orderId] };
+
+    // Save customer name if it changed
+    if (updates.customerName && updates.customerName !== oldOrder.customerName) {
+      saveCustomerName(updates.customerName);
+    }
 
     orders[orderId] = {
       ...oldOrder,
@@ -382,6 +391,47 @@ export const clearTodayOrders = (storeId) => {
   }
 };
 
+// ============ CUSTOMER NAMES ============
+
+export const getAllCustomerNames = () => {
+  return getFromStorage(STORAGE_KEYS.CUSTOMER_NAMES, []);
+};
+
+export const saveCustomerName = (name) => {
+  if (!name || !name.trim()) return;
+
+  const names = getAllCustomerNames();
+  const trimmedName = name.trim();
+
+  // Don't add if already exists (case-insensitive check)
+  const exists = names.some(n => n.toLowerCase() === trimmedName.toLowerCase());
+  if (!exists) {
+    names.unshift(trimmedName); // Add to beginning for recent-first ordering
+
+    // Keep only the last 100 unique names to avoid storage bloat
+    const uniqueNames = names.slice(0, 100);
+    saveToStorage(STORAGE_KEYS.CUSTOMER_NAMES, uniqueNames);
+  }
+};
+
+export const searchCustomerNames = (query) => {
+  if (!query || !query.trim()) return [];
+
+  const names = getAllCustomerNames();
+  const lowerQuery = query.toLowerCase().trim();
+
+  // Return names that start with the query, then names that contain the query
+  const startsWith = names.filter(name =>
+    name.toLowerCase().startsWith(lowerQuery)
+  );
+  const contains = names.filter(name =>
+    !name.toLowerCase().startsWith(lowerQuery) &&
+    name.toLowerCase().includes(lowerQuery)
+  );
+
+  return [...startsWith, ...contains].slice(0, 5); // Limit to 5 suggestions
+};
+
 // ============ DATA MANAGEMENT ============
 
 export const clearAllData = () => {
@@ -389,6 +439,7 @@ export const clearAllData = () => {
     localStorage.removeItem(STORAGE_KEYS.STORES);
     localStorage.removeItem(STORAGE_KEYS.ORDERS);
     localStorage.removeItem(STORAGE_KEYS.SESSIONS);
+    localStorage.removeItem(STORAGE_KEYS.CUSTOMER_NAMES);
     return true;
   }
   return false;
