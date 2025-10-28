@@ -175,7 +175,7 @@ const api = {
    */
   updateCompany: async (companyId, data) => {
     return await request(`/api/admin/companies/${companyId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -204,7 +204,7 @@ const api = {
    */
   updateUser: async (userId, data) => {
     return await request(`/api/admin/users/${userId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -296,7 +296,7 @@ const api = {
    */
   updateProduct: async (productId, data) => {
     return await request(`/api/products/${productId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
@@ -341,7 +341,7 @@ const api = {
    */
   updateCombo: async (comboId, data) => {
     return await request(`/api/combos/${comboId}`, {
-      method: 'PUT',
+      method: 'PATCH',
       body: JSON.stringify(data),
     });
   },
