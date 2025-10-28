@@ -209,6 +209,16 @@ const api = {
     });
   },
 
+  /**
+   * Change user password (admin only)
+   */
+  changeUserPassword: async (userId, newPassword) => {
+    return await request(`/api/admin/users/${userId}/change-password`, {
+      method: 'POST',
+      body: JSON.stringify({ new_password: newPassword }),
+    });
+  },
+
   // ============ Stores ============
 
   /**

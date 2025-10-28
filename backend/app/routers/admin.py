@@ -4,7 +4,7 @@ from typing import List
 
 from ..database import get_db
 from ..models import User, Company
-from ..schemas.user import UserCreate, UserUpdate, UserResponse
+from ..schemas.user import UserCreate, UserUpdate, UserResponse, UserPasswordChange
 from ..schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
 from ..security import get_password_hash
 from ..dependencies import get_current_admin_user
@@ -158,6 +158,28 @@ async def update_user(
                 detail="Company not found"
             )
         user.company_id = user_data.company_id
+
+    db.commit()
+    db.refresh(user)
+    # Reload with company relationship
+    user = db.query(User).options(joinedload(User.company)).filter(User.id == user_id).first()
+    return user
+
+
+@router.post("/users/{user_id}/change-password", response_model=UserResponse)
+async def change_user_password(
+    user_id: str,
+    password_data: UserPasswordChange,
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin_user)
+):
+    """Change a user's password (admin only)"""
+    user = db.query(User).filter(User.id == user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    # Update password
+    user.password_hash = get_password_hash(password_data.new_password)
 
     db.commit()
     db.refresh(user)

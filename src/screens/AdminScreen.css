@@ -276,6 +276,34 @@
   background: #a7f3d0;
 }
 
+.action-buttons {
+  display: flex;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.btn-change-password {
+  padding: 0.5rem 0.75rem;
+  border: none;
+  border-radius: 6px;
+  font-size: 0.875rem;
+  font-weight: 500;
+  cursor: pointer;
+  transition: all 0.2s;
+  background: #dbeafe;
+  color: #1e40af;
+  min-height: 36px;
+}
+
+.btn-change-password:hover:not(:disabled) {
+  background: #bfdbfe;
+}
+
+.btn-change-password:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
 /* Modal */
 .modal-overlay {
   position: fixed;

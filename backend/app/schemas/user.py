@@ -42,3 +42,7 @@ class UserResponse(UserBase):
 
     class Config:
         from_attributes = True
+
+
+class UserPasswordChange(BaseModel):
+    new_password: str = Field(..., min_length=6)

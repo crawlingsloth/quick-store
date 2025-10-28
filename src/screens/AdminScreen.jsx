@@ -24,7 +24,9 @@ const AdminScreen = () => {
   const [showCreateCompanyModal, setShowCreateCompanyModal] = useState(false);
   const [showEditCompanyModal, setShowEditCompanyModal] = useState(false);
   const [showChangePasswordModal, setShowChangePasswordModal] = useState(false);
+  const [showChangeUserPasswordModal, setShowChangeUserPasswordModal] = useState(false);
   const [editingCompany, setEditingCompany] = useState(null);
+  const [editingUser, setEditingUser] = useState(null);
 
   // Form data
   const [userForm, setUserForm] = useState({
@@ -42,6 +44,11 @@ const AdminScreen = () => {
 
   const [passwordForm, setPasswordForm] = useState({
     currentPassword: '',
+    newPassword: '',
+    confirmPassword: '',
+  });
+
+  const [userPasswordForm, setUserPasswordForm] = useState({
     newPassword: '',
     confirmPassword: '',
   });
@@ -200,6 +207,48 @@ const AdminScreen = () => {
     }
   };
 
+  // Change user password (admin only)
+  const handleChangeUserPassword = async (e) => {
+    e.preventDefault();
+    setError('');
+
+    // Validate passwords match
+    if (userPasswordForm.newPassword !== userPasswordForm.confirmPassword) {
+      setError('New passwords do not match');
+      return;
+    }
+
+    // Validate password length
+    if (userPasswordForm.newPassword.length < 6) {
+      setError('New password must be at least 6 characters');
+      return;
+    }
+
+    if (!editingUser) return;
+
+    setLoading(true);
+
+    try {
+      await api.changeUserPassword(editingUser.id, userPasswordForm.newPassword);
+      setShowChangeUserPasswordModal(false);
+      setUserPasswordForm({ newPassword: '', confirmPassword: '' });
+      setEditingUser(null);
+      alert(`Password changed successfully for user: ${editingUser.username}`);
+    } catch (err) {
+      setError(err.message || 'Failed to change user password');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // Open change user password modal
+  const handleOpenChangeUserPassword = (user) => {
+    setEditingUser(user);
+    setUserPasswordForm({ newPassword: '', confirmPassword: '' });
+    setShowChangeUserPasswordModal(true);
+    setError('');
+  };
+
   return (
     <div className="admin-screen">
       <div className="admin-header">
@@ -298,15 +347,25 @@ const AdminScreen = () => {
                           </span>
                         </td>
                         <td>
-                          {user.role !== 'admin' && (
+                          <div className="action-buttons">
                             <button
-                              className={`btn-toggle ${user.is_active ? 'deactivate' : 'activate'}`}
-                              onClick={() => handleToggleUserStatus(user)}
+                              className="btn-change-password"
+                              onClick={() => handleOpenChangeUserPassword(user)}
                               disabled={loading}
+                              title="Change user password"
                             >
-                              {user.is_active ? 'Deactivate' : 'Activate'}
+                              🔑 Change Password
                             </button>
-                          )}
+                            {user.role !== 'admin' && (
+                              <button
+                                className={`btn-toggle ${user.is_active ? 'deactivate' : 'activate'}`}
+                                onClick={() => handleToggleUserStatus(user)}
+                                disabled={loading}
+                              >
+                                {user.is_active ? 'Deactivate' : 'Activate'}
+                              </button>
+                            )}
+                          </div>
                         </td>
                       </tr>
                     ))}
@@ -658,6 +717,68 @@ const AdminScreen = () => {
                   onClick={() => {
                     setShowChangePasswordModal(false);
                     setPasswordForm({ currentPassword: '', newPassword: '', confirmPassword: '' });
+                    setError('');
+                  }}
+                  disabled={loading}
+                >
+                  Cancel
+                </button>
+                <button type="submit" className="btn-primary" disabled={loading}>
+                  {loading ? 'Changing...' : 'Change Password'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Change User Password Modal (Admin Only) */}
+      {showChangeUserPasswordModal && editingUser && (
+        <div className="modal-overlay" onClick={() => !loading && setShowChangeUserPasswordModal(false)}>
+          <div className="modal" onClick={(e) => e.stopPropagation()}>
+            <h2>Change Password for {editingUser.username}</h2>
+            <form onSubmit={handleChangeUserPassword}>
+              <div className="form-group">
+                <label htmlFor="userNewPassword">New Password</label>
+                <input
+                  id="userNewPassword"
+                  type="password"
+                  value={userPasswordForm.newPassword}
+                  onChange={(e) => setUserPasswordForm({ ...userPasswordForm, newPassword: e.target.value })}
+                  placeholder="Enter new password (min 6 characters)"
+                  required
+                  autoFocus
+                  disabled={loading}
+                />
+              </div>
+
+              <div className="form-group">
+                <label htmlFor="userConfirmPassword">Confirm New Password</label>
+                <input
+                  id="userConfirmPassword"
+                  type="password"
+                  value={userPasswordForm.confirmPassword}
+                  onChange={(e) => setUserPasswordForm({ ...userPasswordForm, confirmPassword: e.target.value })}
+                  placeholder="Confirm new password"
+                  required
+                  disabled={loading}
+                />
+              </div>
+
+              {error && (
+                <div className="error-message">
+                  {error}
+                </div>
+              )}
+
+              <div className="modal-actions">
+                <button
+                  type="button"
+                  className="btn-secondary"
+                  onClick={() => {
+                    setShowChangeUserPasswordModal(false);
+                    setUserPasswordForm({ newPassword: '', confirmPassword: '' });
+                    setEditingUser(null);
                     setError('');
                   }}
                   disabled={loading}
