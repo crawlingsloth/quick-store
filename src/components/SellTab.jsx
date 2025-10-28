@@ -1,11 +1,18 @@
-import { useState, useRef } from 'react';
+/**
+ * Sell Tab - Backend Integration
+ *
+ * POS interface for processing sales with async API operations
+ */
+
+import { useState, useRef, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
-import { searchCustomerNames } from '../utils/storage';
 import './SellTab.css';
 
 const SellTab = () => {
   const {
     getCurrentStore,
+    products,
+    combos,
     cart,
     addToCart,
     updateCartItemQuantity,
@@ -13,37 +20,56 @@ const SellTab = () => {
     clearCart,
     getCartTotal,
     createOrder,
+    getCustomerNames,
     currencySymbol,
+    loading,
   } = useApp();
 
   const [showCheckout, setShowCheckout] = useState(false);
   const [customerName, setCustomerName] = useState('');
+  const [isPaid, setIsPaid] = useState(false);
   const [customerSuggestions, setCustomerSuggestions] = useState([]);
+  const [allCustomerNames, setAllCustomerNames] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [showQuantityModal, setShowQuantityModal] = useState(false);
   const [selectedProduct, setSelectedProduct] = useState(null);
   const [customQuantity, setCustomQuantity] = useState('1');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [actionError, setActionError] = useState('');
 
   const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
 
   const store = getCurrentStore();
+
+  // Load customer names for autocomplete
+  useEffect(() => {
+    const loadCustomerNames = async () => {
+      const names = await getCustomerNames();
+      setAllCustomerNames(names);
+    };
+
+    if (store) {
+      loadCustomerNames();
+    }
+  }, [store]);
+
   if (!store) return null;
 
   // Check if product is available (for inventory tracking)
   const isProductAvailable = (product) => {
-    if (!store.trackInventory) return true;
-    return product.inventory > 0;
+    if (!store.track_inventory) return true;
+    return product.inventory !== null && product.inventory !== undefined && product.inventory > 0;
   };
 
   const getProductStock = (product) => {
-    if (!store.trackInventory) return null;
+    if (!store.track_inventory) return null;
     return product.inventory;
   };
 
-  // Long press handlers
+  // Long press handlers for mobile
   const handleTouchStart = (e, product) => {
-    e.preventDefault(); // Prevent mouse events from firing
+    e.preventDefault();
     longPressTriggered.current = false;
     longPressTimer.current = setTimeout(() => {
       if (navigator.vibrate) navigator.vibrate(50);
@@ -55,7 +81,7 @@ const SellTab = () => {
   };
 
   const handleTouchEnd = (e, product) => {
-    e.preventDefault(); // Prevent mouse events from firing
+    e.preventDefault();
     if (longPressTimer.current) {
       clearTimeout(longPressTimer.current);
     }
@@ -76,29 +102,51 @@ const SellTab = () => {
     setSelectedProduct(null);
   };
 
-  const handleCheckout = (e) => {
+  const handleCheckout = async (e) => {
     e.preventDefault();
-    if (customerName.trim() && cart.length > 0) {
-      createOrder(customerName.trim());
-      setCustomerName('');
-      setShowCheckout(false);
+
+    if (cart.length === 0) {
+      setActionError('Cart is empty');
+      return;
     }
+
+    setActionLoading(true);
+    setActionError('');
+
+    const result = await createOrder(customerName.trim() || null, isPaid);
+
+    if (result.success) {
+      setCustomerName('');
+      setIsPaid(false);
+      setShowCheckout(false);
+      // Reload customer names after successful order
+      const names = await getCustomerNames();
+      setAllCustomerNames(names);
+    } else {
+      setActionError(result.error || 'Failed to create order');
+    }
+
+    setActionLoading(false);
   };
 
   const handleCancelCheckout = () => {
     setShowCheckout(false);
     setCustomerName('');
+    setIsPaid(false);
     setCustomerSuggestions([]);
     setShowSuggestions(false);
+    setActionError('');
   };
 
   const handleCustomerNameChange = (e) => {
     const value = e.target.value;
     setCustomerName(value);
 
-    // Search for suggestions
+    // Search for suggestions from backend customer names
     if (value.trim()) {
-      const suggestions = searchCustomerNames(value);
+      const suggestions = allCustomerNames.filter((name) =>
+        name.toLowerCase().includes(value.toLowerCase())
+      );
       setCustomerSuggestions(suggestions);
       setShowSuggestions(suggestions.length > 0);
     } else {
@@ -114,7 +162,7 @@ const SellTab = () => {
   };
 
   // Group products by category
-  const productsByCategory = store.products.reduce((acc, product) => {
+  const productsByCategory = products.reduce((acc, product) => {
     const category = product.category || 'Uncategorized';
     if (!acc[category]) acc[category] = [];
     acc[category].push(product);
@@ -123,7 +171,12 @@ const SellTab = () => {
 
   return (
     <div className="sell-tab">
-      {store.products.length === 0 ? (
+      {loading ? (
+        <div className="loading-state">
+          <div className="spinner"></div>
+          <p>Loading...</p>
+        </div>
+      ) : products.length === 0 ? (
         <div className="empty-state">
           <p>No products available</p>
           <p className="hint">Add products in the Products tab first</p>
@@ -131,108 +184,113 @@ const SellTab = () => {
       ) : (
         <>
           <div className="products-grid-container">
-            {store.combos.length > 0 && (
+            {combos.length > 0 && (
               <div className="combos-section">
                 <h3>Quick Combos</h3>
                 <div className="combos-grid">
-                  {store.combos.map(combo => (
+                  {combos.map((combo) => (
                     <button
                       key={combo.id}
                       className="combo-btn"
                       onClick={() => {
-                        combo.items.forEach(item => {
-                          const product = store.products.find(p => p.id === item.productId);
+                        combo.items.forEach((item) => {
+                          const product = products.find((p) => p.id === item.product_id);
                           if (product) {
                             addToCart(product, item.quantity);
                           }
                         });
                       }}
+                      disabled={actionLoading}
                     >
                       <div className="combo-name">{combo.name}</div>
-                      <div className="combo-price">{currencySymbol}{combo.totalPrice.toFixed(2)}</div>
+                      <div className="combo-price">
+                        {currencySymbol}
+                        {parseFloat(combo.total_price).toFixed(2)}
+                      </div>
                     </button>
                   ))}
                 </div>
               </div>
             )}
 
-            {Object.entries(productsByCategory).map(([category, products]) => (
-              <div key={category} className="category-section">
-                <h3>{category}</h3>
-                <div className="products-grid">
-                  {products.map(product => {
-                    const available = isProductAvailable(product);
-                    const stock = getProductStock(product);
-
-                    return (
-                      <button
-                        key={product.id}
-                        className={`product-btn ${!available ? 'disabled' : ''}`}
-                        onTouchStart={(e) => handleTouchStart(e, product)}
-                        onTouchEnd={(e) => handleTouchEnd(e, product)}
-                        onMouseDown={(e) => handleTouchStart(e, product)}
-                        onMouseUp={(e) => handleTouchEnd(e, product)}
-                        onMouseLeave={() => {
-                          if (longPressTimer.current) {
-                            clearTimeout(longPressTimer.current);
-                          }
-                        }}
-                        disabled={!available}
-                      >
-                        <div className="product-btn-name">{product.name}</div>
-                        <div className="product-btn-price">{currencySymbol}{product.price.toFixed(2)}</div>
-                        {stock !== null && (
-                          <div className={`product-btn-stock ${stock < 10 ? 'low' : ''}`}>
-                            {stock === 0 ? 'Out of stock' : `Stock: ${stock}`}
+            <div className="products-grid">
+              {Object.entries(productsByCategory).map(([category, categoryProducts]) => (
+                <div key={category} className="category-section">
+                  <h3 className="category-title">{category}</h3>
+                  <div className="category-products">
+                    {categoryProducts.map((product) => {
+                      const available = isProductAvailable(product);
+                      const stock = getProductStock(product);
+                      return (
+                        <button
+                          key={product.id}
+                          className={`product-btn ${!available ? 'out-of-stock' : ''}`}
+                          onTouchStart={(e) => handleTouchStart(e, product)}
+                          onTouchEnd={(e) => handleTouchEnd(e, product)}
+                          onClick={() => available && addToCart(product, 1)}
+                          disabled={!available || actionLoading}
+                        >
+                          <div className="product-btn-name">{product.name}</div>
+                          <div className="product-btn-price">
+                            {currencySymbol}
+                            {parseFloat(product.price).toFixed(2)}
                           </div>
-                        )}
-                      </button>
-                    );
-                  })}
+                          {stock !== null && stock !== undefined && (
+                            <div className={`product-btn-stock ${stock < 10 ? 'low' : ''}`}>
+                              {stock > 0 ? `${stock} left` : 'Out of stock'}
+                            </div>
+                          )}
+                        </button>
+                      );
+                    })}
+                  </div>
                 </div>
-              </div>
-            ))}
+              ))}
+            </div>
           </div>
 
-          {/* Cart Display */}
+          {/* Cart */}
           {cart.length > 0 && (
-            <div className="cart">
+            <div className="cart-section">
               <div className="cart-header">
-                <h3>Cart</h3>
-                <button className="btn-clear-cart" onClick={clearCart}>
+                <h3>Cart ({cart.length})</h3>
+                <button className="clear-cart-btn" onClick={clearCart} disabled={actionLoading}>
                   Clear
                 </button>
               </div>
 
               <div className="cart-items">
-                {cart.map(item => (
-                  <div key={item.productId} className="cart-item">
+                {cart.map((item) => (
+                  <div key={item.product_id} className="cart-item">
                     <div className="cart-item-info">
-                      <div className="cart-item-name">{item.productName}</div>
+                      <div className="cart-item-name">{item.product_name}</div>
                       <div className="cart-item-price">
-                        {currencySymbol}{item.price.toFixed(2)} × {item.quantity} = {currencySymbol}
-                        {(item.price * item.quantity).toFixed(2)}
+                        {currencySymbol}
+                        {parseFloat(item.price).toFixed(2)} × {item.quantity}
                       </div>
                     </div>
                     <div className="cart-item-controls">
                       <button
-                        className="cart-btn"
-                        onClick={() => updateCartItemQuantity(item.productId, item.quantity - 1)}
+                        className="qty-btn"
+                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity - 1)}
+                        disabled={actionLoading}
                       >
                         −
                       </button>
-                      <span className="cart-quantity">{item.quantity}</span>
+                      <span className="qty-display">{item.quantity}</span>
                       <button
-                        className="cart-btn"
-                        onClick={() => updateCartItemQuantity(item.productId, item.quantity + 1)}
+                        className="qty-btn"
+                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity + 1)}
+                        disabled={actionLoading}
                       >
                         +
                       </button>
                       <button
-                        className="cart-btn-remove"
-                        onClick={() => removeFromCart(item.productId)}
+                        className="remove-btn"
+                        onClick={() => removeFromCart(item.product_id)}
+                        disabled={actionLoading}
                       >
-                        🗑️
+                        ×
                       </button>
                     </div>
                   </div>
@@ -240,11 +298,18 @@ const SellTab = () => {
               </div>
 
               <div className="cart-total">
-                <span>Total</span>
-                <span className="cart-total-amount">{currencySymbol}{getCartTotal().toFixed(2)}</span>
+                <span>Total:</span>
+                <span className="total-amount">
+                  {currencySymbol}
+                  {getCartTotal().toFixed(2)}
+                </span>
               </div>
 
-              <button className="btn-checkout" onClick={() => setShowCheckout(true)}>
+              <button
+                className="checkout-btn"
+                onClick={() => setShowCheckout(true)}
+                disabled={actionLoading}
+              >
                 Checkout
               </button>
             </div>
@@ -256,7 +321,8 @@ const SellTab = () => {
       {showQuantityModal && selectedProduct && (
         <div className="modal-overlay" onClick={() => setShowQuantityModal(false)}>
           <div className="modal quantity-modal" onClick={(e) => e.stopPropagation()}>
-            <h2>{selectedProduct.name}</h2>
+            <h2>Select Quantity</h2>
+            <p className="product-modal-name">{selectedProduct.name}</p>
             <form onSubmit={handleQuantitySubmit}>
               <div className="form-group">
                 <label htmlFor="quantity">Quantity</label>
@@ -289,68 +355,83 @@ const SellTab = () => {
 
       {/* Checkout Modal */}
       {showCheckout && (
-        <div className="modal-overlay" onClick={handleCancelCheckout}>
+        <div className="modal-overlay" onClick={() => !actionLoading && handleCancelCheckout()}>
           <div className="modal checkout-modal" onClick={(e) => e.stopPropagation()}>
             <h2>Checkout</h2>
 
             <div className="checkout-summary">
-              {cart.map(item => (
-                <div key={item.productId} className="checkout-item">
-                  <span>{item.quantity}× {item.productName}</span>
-                  <span>{currencySymbol}{(item.price * item.quantity).toFixed(2)}</span>
-                </div>
-              ))}
+              <div className="checkout-items">
+                {cart.map((item) => (
+                  <div key={item.product_id} className="checkout-item">
+                    <span>{item.product_name}</span>
+                    <span>
+                      × {item.quantity} = {currencySymbol}
+                      {(parseFloat(item.price) * item.quantity).toFixed(2)}
+                    </span>
+                  </div>
+                ))}
+              </div>
               <div className="checkout-total">
-                <strong>Total</strong>
-                <strong>{currencySymbol}{getCartTotal().toFixed(2)}</strong>
+                <strong>Total: {currencySymbol}{getCartTotal().toFixed(2)}</strong>
               </div>
             </div>
 
             <form onSubmit={handleCheckout}>
-              <div className="form-group" style={{ position: 'relative' }}>
-                <label htmlFor="customerName">Customer Name</label>
+              <div className="form-group">
+                <label htmlFor="customerName">Customer Name (optional)</label>
                 <input
                   id="customerName"
                   type="text"
                   value={customerName}
                   onChange={handleCustomerNameChange}
-                  onFocus={(e) => {
-                    if (e.target.value.trim()) {
-                      const suggestions = searchCustomerNames(e.target.value);
-                      setCustomerSuggestions(suggestions);
-                      setShowSuggestions(suggestions.length > 0);
-                    }
-                  }}
-                  placeholder="Enter customer name"
+                  placeholder="Walk-in customer"
                   autoFocus
+                  disabled={actionLoading}
                   autoComplete="off"
-                  required
                 />
                 {showSuggestions && customerSuggestions.length > 0 && (
-                  <div className="customer-suggestions">
-                    {customerSuggestions.map((suggestion, index) => (
-                      <button
+                  <div className="suggestions-dropdown">
+                    {customerSuggestions.map((name, index) => (
+                      <div
                         key={index}
-                        type="button"
-                        className="customer-suggestion-item"
-                        onClick={() => handleSelectSuggestion(suggestion)}
+                        className="suggestion-item"
+                        onClick={() => handleSelectSuggestion(name)}
                       >
-                        {suggestion}
-                      </button>
+                        {name}
+                      </div>
                     ))}
                   </div>
                 )}
               </div>
+
+              <div className="form-group checkbox-group">
+                <label htmlFor="isPaid" className="checkbox-label">
+                  <input
+                    id="isPaid"
+                    type="checkbox"
+                    checked={isPaid}
+                    onChange={(e) => setIsPaid(e.target.checked)}
+                    disabled={actionLoading}
+                  />
+                  <span>Mark as paid</span>
+                </label>
+              </div>
+
+              {actionError && (
+                <div className="form-error">{actionError}</div>
+              )}
+
               <div className="modal-actions">
                 <button
                   type="button"
                   className="btn-secondary"
                   onClick={handleCancelCheckout}
+                  disabled={actionLoading}
                 >
                   Cancel
                 </button>
-                <button type="submit" className="btn-primary btn-complete">
-                  Complete Order
+                <button type="submit" className="btn-primary" disabled={actionLoading}>
+                  {actionLoading ? 'Processing...' : 'Complete Sale'}
                 </button>
               </div>
             </form>

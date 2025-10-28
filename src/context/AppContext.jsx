@@ -1,5 +1,13 @@
+/**
+ * App Context - Backend Integration
+ *
+ * Manages application state with backend API integration
+ * All operations are async and use the backend API
+ */
+
 import { createContext, useContext, useState, useEffect } from 'react';
-import * as storage from '../utils/storage';
+import api from '../services/api';
+import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
 
@@ -12,127 +20,349 @@ export const useApp = () => {
 };
 
 export const AppProvider = ({ children }) => {
-  const [stores, setStores] = useState({});
-  const [currentStoreId, setCurrentStoreId] = useState(null);
-  const [currentScreen, setCurrentScreen] = useState('home'); // 'home' | 'store'
+  const { user, isAuthenticated } = useAuth();
+
+  // State
+  const [store, setStore] = useState(null);
+  const [stores, setStores] = useState([]);
+  const [products, setProducts] = useState([]);
+  const [combos, setCombos] = useState([]);
+  const [currentScreen, setCurrentScreen] = useState('home');
   const [cart, setCart] = useState([]);
-  const [refreshTrigger, setRefreshTrigger] = useState(0);
-  const [currencySymbol, setCurrencySymbol] = useState('$');
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState(null);
 
-  // Load stores and settings from localStorage on mount
+  // Load initial data when user is authenticated
   useEffect(() => {
-    loadStores();
-    loadSettings();
-  }, [refreshTrigger]);
+    if (isAuthenticated && user) {
+      loadInitialData();
+    }
+  }, [isAuthenticated, user]);
 
-  const loadStores = () => {
-    const loadedStores = storage.getAllStores();
-    setStores(loadedStores);
-  };
+  /**
+   * Load store, products, and combos
+   */
+  const loadInitialData = async () => {
+    setLoading(true);
+    setError(null);
 
-  const loadSettings = () => {
-    const savedCurrency = localStorage.getItem('currencySymbol');
-    if (savedCurrency) {
-      setCurrencySymbol(savedCurrency);
+    try {
+      // Load all stores for the company
+      try {
+        const storesData = await api.listStores();
+        setStores(storesData);
+
+        // If there's at least one store, set it as current
+        if (storesData.length > 0) {
+          setStore(storesData[0]);
+
+          // Load products and combos for the first store
+          const [productsData, combosData] = await Promise.all([
+            api.listProducts(),
+            api.listCombos(),
+          ]);
+
+          setProducts(productsData);
+          setCombos(combosData);
+        } else {
+          setStore(null);
+          setProducts([]);
+          setCombos([]);
+        }
+      } catch (err) {
+        // No stores exist yet - user needs to create one
+        console.log('No stores found, user needs to create one');
+        setStores([]);
+        setStore(null);
+        setProducts([]);
+        setCombos([]);
+      }
+    } catch (err) {
+      console.error('Failed to load initial data:', err);
+      setError(err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const updateCurrencySymbol = (symbol) => {
-    setCurrencySymbol(symbol);
-    localStorage.setItem('currencySymbol', symbol);
-  };
-
-  const refresh = () => {
-    setRefreshTrigger(prev => prev + 1);
+  /**
+   * Get currency symbol from company or default
+   */
+  const getCurrencySymbol = () => {
+    return user?.company?.currency_symbol || '$';
   };
 
   // ============ STORE OPERATIONS ============
 
-  const createStore = (name, trackInventory) => {
-    const newStore = storage.createStore(name, trackInventory);
-    refresh();
-    return newStore;
-  };
+  const createStore = async (name, trackInventory) => {
+    setLoading(true);
+    setError(null);
 
-  const updateStore = (storeId, updates) => {
-    const updated = storage.updateStore(storeId, updates);
-    refresh();
-    return updated;
-  };
+    try {
+      const newStore = await api.createStore({
+        name,
+        track_inventory: trackInventory,
+      });
 
-  const deleteStore = (storeId) => {
-    storage.deleteStore(storeId);
-    if (currentStoreId === storeId) {
-      setCurrentStoreId(null);
+      setStore(newStore);
+      setStores([...stores, newStore]);
       setCurrentScreen('home');
+
+      // Reload initial data to refresh stores list
+      await loadInitialData();
+
+      return { success: true, store: newStore };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
     }
-    refresh();
   };
 
-  const selectStore = (storeId) => {
-    setCurrentStoreId(storeId);
+  const updateStore = async (updates) => {
+    if (!store) return { success: false, error: 'No store selected' };
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updated = await api.updateStore(store.id, {
+        name: updates.name,
+        track_inventory: updates.trackInventory,
+      });
+
+      setStore(updated);
+      // Update the store in the stores array as well
+      setStores(stores.map(s => s.id === updated.id ? updated : s));
+      return { success: true, store: updated };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const deleteStore = async (storeId) => {
+    if (!storeId) return { success: false, error: 'No store ID provided' };
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.deleteStore(storeId);
+
+      // Remove the deleted store from the stores list
+      setStores(stores.filter(s => s.id !== storeId));
+
+      // If the deleted store was the current store, clear it
+      if (store && store.id === storeId) {
+        setStore(null);
+        setProducts([]);
+        setCombos([]);
+        setCart([]);
+      }
+
+      setCurrentScreen('home');
+
+      // Reload initial data to refresh stores list
+      await loadInitialData();
+
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const selectStore = async (storeId = null) => {
+    if (storeId) {
+      // Find and set the specific store
+      const selectedStore = stores.find(s => s.id === storeId);
+      if (selectedStore) {
+        setStore(selectedStore);
+        // Load products and combos for the selected store
+        setLoading(true);
+        try {
+          const [productsData, combosData] = await Promise.all([
+            api.listProducts(),
+            api.listCombos(),
+          ]);
+          setProducts(productsData);
+          setCombos(combosData);
+        } catch (err) {
+          console.error('Failed to load store data:', err);
+        } finally {
+          setLoading(false);
+        }
+      }
+    }
     setCurrentScreen('store');
     setCart([]);
   };
 
   const goHome = () => {
-    setCurrentStoreId(null);
     setCurrentScreen('home');
     setCart([]);
   };
 
   // ============ PRODUCT OPERATIONS ============
 
-  const addProduct = (product) => {
-    if (!currentStoreId) return null;
-    const newProduct = storage.addProduct(currentStoreId, product);
-    refresh();
-    return newProduct;
+  const addProduct = async (product) => {
+    if (!store) return { success: false, error: 'No store selected' };
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newProduct = await api.createProduct({
+        name: product.name,
+        price: parseFloat(product.price),
+        category: product.category || null,
+        inventory: product.inventory !== undefined ? parseInt(product.inventory) : null,
+      });
+
+      setProducts((prev) => [...prev, newProduct]);
+      return { success: true, product: newProduct };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateProduct = (productId, updates) => {
-    if (!currentStoreId) return null;
-    const updated = storage.updateProduct(currentStoreId, productId, updates);
-    refresh();
-    return updated;
+  const updateProduct = async (productId, updates) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updated = await api.updateProduct(productId, {
+        name: updates.name,
+        price: parseFloat(updates.price),
+        category: updates.category || null,
+        inventory: updates.inventory !== undefined ? parseInt(updates.inventory) : null,
+      });
+
+      setProducts((prev) =>
+        prev.map((p) => (p.id === productId ? updated : p))
+      );
+      return { success: true, product: updated };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteProduct = (productId) => {
-    if (!currentStoreId) return;
-    storage.deleteProduct(currentStoreId, productId);
-    refresh();
+  const deleteProduct = async (productId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.deleteProduct(productId);
+      setProducts((prev) => prev.filter((p) => p.id !== productId));
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  /**
+   * Reload products from backend
+   */
+  const reloadProducts = async () => {
+    try {
+      const productsData = await api.listProducts();
+      setProducts(productsData);
+    } catch (err) {
+      console.error('Failed to reload products:', err);
+    }
   };
 
   // ============ COMBO OPERATIONS ============
 
-  const addCombo = (combo) => {
-    if (!currentStoreId) return null;
-    const newCombo = storage.addCombo(currentStoreId, combo);
-    refresh();
-    return newCombo;
+  const addCombo = async (combo) => {
+    if (!store) return { success: false, error: 'No store selected' };
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newCombo = await api.createCombo({
+        name: combo.name,
+        items: combo.items.map((item) => ({
+          product_id: item.productId,
+          quantity: parseInt(item.quantity),
+        })),
+      });
+
+      setCombos((prev) => [...prev, newCombo]);
+      return { success: true, combo: newCombo };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateCombo = (comboId, updates) => {
-    if (!currentStoreId) return null;
-    const updated = storage.updateCombo(currentStoreId, comboId, updates);
-    refresh();
-    return updated;
+  const updateCombo = async (comboId, updates) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updated = await api.updateCombo(comboId, {
+        name: updates.name,
+        items: updates.items.map((item) => ({
+          product_id: item.productId,
+          quantity: parseInt(item.quantity),
+        })),
+      });
+
+      setCombos((prev) =>
+        prev.map((c) => (c.id === comboId ? updated : c))
+      );
+      return { success: true, combo: updated };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteCombo = (comboId) => {
-    if (!currentStoreId) return;
-    storage.deleteCombo(currentStoreId, comboId);
-    refresh();
+  const deleteCombo = async (comboId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.deleteCombo(comboId);
+      setCombos((prev) => prev.filter((c) => c.id !== comboId));
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ============ CART OPERATIONS ============
 
   const addToCart = (product, quantity = 1) => {
-    setCart(prevCart => {
-      const existingItem = prevCart.find(item => item.productId === product.id);
+    setCart((prevCart) => {
+      const existingItem = prevCart.find((item) => item.product_id === product.id);
       if (existingItem) {
-        return prevCart.map(item =>
-          item.productId === product.id
+        return prevCart.map((item) =>
+          item.product_id === product.id
             ? { ...item, quantity: item.quantity + quantity }
             : item
         );
@@ -140,8 +370,8 @@ export const AppProvider = ({ children }) => {
         return [
           ...prevCart,
           {
-            productId: product.id,
-            productName: product.name,
+            product_id: product.id,
+            product_name: product.name,
             price: product.price,
             quantity,
           },
@@ -154,16 +384,16 @@ export const AppProvider = ({ children }) => {
     if (quantity <= 0) {
       removeFromCart(productId);
     } else {
-      setCart(prevCart =>
-        prevCart.map(item =>
-          item.productId === productId ? { ...item, quantity } : item
+      setCart((prevCart) =>
+        prevCart.map((item) =>
+          item.product_id === productId ? { ...item, quantity } : item
         )
       );
     }
   };
 
   const removeFromCart = (productId) => {
-    setCart(prevCart => prevCart.filter(item => item.productId !== productId));
+    setCart((prevCart) => prevCart.filter((item) => item.product_id !== productId));
   };
 
   const clearCart = () => {
@@ -176,52 +406,163 @@ export const AppProvider = ({ children }) => {
 
   // ============ ORDER OPERATIONS ============
 
-  const createOrder = (customerName) => {
-    if (!currentStoreId || cart.length === 0) return null;
+  const createOrder = async (customerName, isPaid = false) => {
+    if (!store || cart.length === 0) {
+      return { success: false, error: 'Cart is empty or no store selected' };
+    }
 
-    const newOrder = storage.createOrder(currentStoreId, customerName, cart);
-    clearCart();
-    refresh();
-    return newOrder;
+    setLoading(true);
+    setError(null);
+
+    try {
+      const newOrder = await api.createOrder({
+        customer_name: customerName || null,
+        items: cart,
+        is_paid: isPaid,
+      });
+
+      clearCart();
+      // Reload products to get updated inventory
+      await reloadProducts();
+
+      return { success: true, order: newOrder };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const updateOrder = (orderId, updates) => {
-    const updated = storage.updateOrder(orderId, updates);
-    refresh();
-    return updated;
+  const updateOrder = async (orderId, updates) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      const updateData = {
+        customer_name: updates.customer_name || updates.customerName || null,
+        items: updates.items,
+      };
+
+      // Add is_paid if provided
+      if (updates.is_paid !== undefined) {
+        updateData.is_paid = updates.is_paid;
+      }
+
+      const updated = await api.updateOrder(orderId, updateData);
+
+      // Reload products to get updated inventory
+      await reloadProducts();
+
+      return { success: true, order: updated };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const deleteOrder = (orderId) => {
-    storage.deleteOrder(orderId);
-    refresh();
+  const deleteOrder = async (orderId) => {
+    setLoading(true);
+    setError(null);
+
+    try {
+      await api.deleteOrder(orderId);
+
+      // Reload products to get updated inventory
+      await reloadProducts();
+
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
   };
 
-  const getTodayOrders = () => {
-    if (!currentStoreId) return [];
-    return storage.getOrdersByDate(currentStoreId, new Date());
+  const getTodayOrders = async () => {
+    if (!store) return [];
+
+    try {
+      const orders = await api.listTodayOrders();
+      return orders;
+    } catch (err) {
+      console.error('Failed to get today orders:', err);
+      return [];
+    }
   };
 
-  const clearTodayOrders = () => {
-    if (!currentStoreId) return;
-    if (confirm('Clear all orders for today? This cannot be undone!')) {
-      storage.clearTodayOrders(currentStoreId);
-      refresh();
+  const getOrders = async (dateFilter = null) => {
+    if (!store) return [];
+
+    try {
+      const orders = await api.listOrders(dateFilter);
+      return orders;
+    } catch (err) {
+      console.error('Failed to get orders:', err);
+      return [];
+    }
+  };
+
+  const clearTodayOrders = async () => {
+    if (!store) return { success: false, error: 'No store selected' };
+
+    if (!confirm('Clear all orders for today? This cannot be undone!')) {
+      return { success: false, error: 'Cancelled by user' };
+    }
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const orders = await api.listTodayOrders();
+      for (const order of orders) {
+        await api.deleteOrder(order.id);
+      }
+
+      // Reload products to get updated inventory
+      await reloadProducts();
+
+      return { success: true };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  // ============ CUSTOMER OPERATIONS ============
+
+  const getCustomerNames = async () => {
+    try {
+      const names = await api.getCustomerNames();
+      return names;
+    } catch (err) {
+      console.error('Failed to get customer names:', err);
+      return [];
     }
   };
 
   // ============ UTILITY ============
 
   const getCurrentStore = () => {
-    return currentStoreId ? stores[currentStoreId] : null;
+    return store;
   };
 
   const value = {
     // State
+    store,
     stores,
-    currentStoreId,
+    products,
+    combos,
     currentScreen,
     cart,
-    currencySymbol,
+    loading,
+    error,
+    currencySymbol: getCurrencySymbol(),
 
     // Store operations
     createStore,
@@ -235,6 +576,7 @@ export const AppProvider = ({ children }) => {
     addProduct,
     updateProduct,
     deleteProduct,
+    reloadProducts,
 
     // Combo operations
     addCombo,
@@ -253,13 +595,14 @@ export const AppProvider = ({ children }) => {
     updateOrder,
     deleteOrder,
     getTodayOrders,
+    getOrders,
     clearTodayOrders,
 
-    // Settings
-    updateCurrencySymbol,
+    // Customer operations
+    getCustomerNames,
 
-    // Utility
-    refresh,
+    // Data refresh
+    loadInitialData,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;

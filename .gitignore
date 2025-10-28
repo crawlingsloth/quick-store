@@ -12,6 +12,21 @@ dist
 dist-ssr
 *.local
 
+# Environment variables
+.env
+.env.local
+backend/.env
+
+# Python
+backend/venv/
+backend/__pycache__/
+backend/**/__pycache__/
+backend/**/*.pyc
+
+# Seed files (contain credentials)
+backend/seed_admin.py
+backend/seed_data.py
+
 # Editor directories and files
 .vscode/*
 !.vscode/extensions.json

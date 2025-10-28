@@ -1,0 +1,22 @@
+[Unit]
+Description=QuickStore Backend API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+WorkingDirectory=/home/eshan/production/services/quick-store/backend
+ExecStartPre=-/usr/bin/podman stop quickstore-backend
+ExecStartPre=-/usr/bin/podman rm quickstore-backend
+ExecStart=/usr/bin/podman run \
+    --name quickstore-backend \
+    --env-file /home/eshan/production/services/quick-store/backend/.env \
+    -p 7878:7878 \
+    quickstore-backend:latest
+ExecStop=/usr/bin/podman stop quickstore-backend
+ExecStopPost=-/usr/bin/podman rm quickstore-backend
+Restart=always
+RestartSec=10
+
+[Install]
+WantedBy=default.target
