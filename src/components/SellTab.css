@@ -491,15 +491,26 @@
 
 @media (max-width: 640px) {
   .combos-grid,
-  .products-grid {
-    grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
-    gap: 0.5rem;
+  .products-grid,
+  .category-products {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 0.75rem;
   }
 
   .product-btn,
   .combo-btn {
-    padding: 1rem 0.75rem;
-    min-height: 90px;
+    padding: 1.25rem 1rem;
+    min-height: 100px;
+  }
+
+  .product-name,
+  .combo-name {
+    font-size: 0.9375rem;
+  }
+
+  .product-price,
+  .combo-price {
+    font-size: 1.125rem;
   }
 
   .cart,
