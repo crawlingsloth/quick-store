@@ -79,13 +79,6 @@ const LoginScreen = () => {
             {loading ? 'Signing in...' : 'Sign In'}
           </button>
         </form>
-
-        <div className="login-footer">
-          <p className="demo-credentials">
-            <strong>Demo Credentials:</strong><br />
-            Admin: admin / admin
-          </p>
-        </div>
       </div>
     </div>
   );
