@@ -43,10 +43,36 @@ const removeToken = () => {
 };
 
 /**
+ * Get current store ID from localStorage
+ */
+const getCurrentStoreId = () => {
+  return localStorage.getItem('current_store_id');
+};
+
+/**
+ * Set current store ID in localStorage
+ */
+const setCurrentStoreId = (storeId) => {
+  if (storeId) {
+    localStorage.setItem('current_store_id', storeId);
+  } else {
+    localStorage.removeItem('current_store_id');
+  }
+};
+
+/**
+ * Remove current store ID from localStorage
+ */
+const removeCurrentStoreId = () => {
+  localStorage.removeItem('current_store_id');
+};
+
+/**
  * Make HTTP request with authentication
  */
 const request = async (endpoint, options = {}) => {
   const token = getToken();
+  const storeId = getCurrentStoreId();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -55,6 +81,10 @@ const request = async (endpoint, options = {}) => {
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (storeId) {
+    headers['X-Store-ID'] = storeId;
   }
 
   const config = {
@@ -444,4 +474,4 @@ const api = {
 };
 
 export default api;
-export { APIError, getToken, setToken, removeToken };
+export { APIError, getToken, setToken, removeToken, getCurrentStoreId, setCurrentStoreId, removeCurrentStoreId };

@@ -1,4 +1,4 @@
-from fastapi import Depends, HTTPException, status
+from fastapi import Depends, HTTPException, status, Header
 from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
 from sqlalchemy.orm import Session, joinedload
 from typing import Optional
@@ -93,14 +93,41 @@ async def get_current_company(
 
 async def get_current_store(
     company: Company = Depends(get_current_company),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_store_id: Optional[str] = Header(None, alias="X-Store-ID")
 ) -> Store:
-    """Get the store for the current company"""
-    store = db.query(Store).filter(Store.company_id == company.id).first()
-    if store is None:
-        raise HTTPException(
-            status_code=status.HTTP_404_NOT_FOUND,
-            detail="No store found for this company. Please create a store first."
-        )
+    """Get the store for the current company
+
+    If X-Store-ID header is provided, use that specific store.
+    Otherwise, return the first store for the company.
+    """
+    if x_store_id:
+        # Validate and use the provided store ID
+        try:
+            store_uuid = UUID(x_store_id)
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid store ID format"
+            )
+
+        store = db.query(Store).filter(
+            Store.id == store_uuid,
+            Store.company_id == company.id
+        ).first()
+
+        if store is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Store not found or does not belong to your company"
+            )
+    else:
+        # Fallback to first store if no store ID is provided
+        store = db.query(Store).filter(Store.company_id == company.id).first()
+        if store is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="No store found for this company. Please create a store first."
+            )
 
     return store

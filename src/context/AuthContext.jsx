@@ -5,7 +5,7 @@
  */
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import api, { getToken, removeToken } from '../services/api';
+import api, { getToken, removeToken, removeCurrentStoreId } from '../services/api';
 
 const AuthContext = createContext(null);
 
@@ -69,6 +69,7 @@ export const AuthProvider = ({ children }) => {
    */
   const logout = () => {
     api.logout();
+    removeCurrentStoreId();
     setUser(null);
     setError(null);
   };

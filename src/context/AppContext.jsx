@@ -6,7 +6,7 @@
  */
 
 import { createContext, useContext, useState, useEffect } from 'react';
-import api from '../services/api';
+import api, { setCurrentStoreId, removeCurrentStoreId } from '../services/api';
 import { useAuth } from './AuthContext';
 
 const AppContext = createContext();
@@ -55,6 +55,7 @@ export const AppProvider = ({ children }) => {
         // If there's at least one store, set it as current
         if (storesData.length > 0) {
           setStore(storesData[0]);
+          setCurrentStoreId(storesData[0].id);
 
           // Load products and combos for the first store
           const [productsData, combosData] = await Promise.all([
@@ -66,6 +67,7 @@ export const AppProvider = ({ children }) => {
           setCombos(combosData);
         } else {
           setStore(null);
+          removeCurrentStoreId();
           setProducts([]);
           setCombos([]);
         }
@@ -105,6 +107,7 @@ export const AppProvider = ({ children }) => {
       });
 
       setStore(newStore);
+      setCurrentStoreId(newStore.id);
       setStores([...stores, newStore]);
       setCurrentScreen('home');
 
@@ -159,6 +162,7 @@ export const AppProvider = ({ children }) => {
       // If the deleted store was the current store, clear it
       if (store && store.id === storeId) {
         setStore(null);
+        removeCurrentStoreId();
         setProducts([]);
         setCombos([]);
         setCart([]);
@@ -184,6 +188,7 @@ export const AppProvider = ({ children }) => {
       const selectedStore = stores.find(s => s.id === storeId);
       if (selectedStore) {
         setStore(selectedStore);
+        setCurrentStoreId(selectedStore.id);
         // Load products and combos for the selected store
         setLoading(true);
         try {
