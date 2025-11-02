@@ -21,7 +21,8 @@ const formatTime = (isoString) => {
 
 // Format currency
 const formatCurrency = (amount, currencySymbol = '$') => {
-  return `${currencySymbol}${amount.toFixed(2)}`;
+  const numAmount = parseFloat(amount) || 0;
+  return `${currencySymbol}${numAmount.toFixed(2)}`;
 };
 
 // ============ TEXT SUMMARY FORMAT ============
@@ -36,19 +37,22 @@ export const generateTextSummary = (storeName, orders, date = new Date(), curren
   let totalRevenue = 0;
 
   orders.forEach(order => {
-    totalRevenue += order.total;
+    totalRevenue += parseFloat(order.total) || 0;
     order.items.forEach(item => {
       const key = item.productName;
+      const price = parseFloat(item.price) || 0;
+      const quantity = parseInt(item.quantity) || 0;
+
       if (itemsMap.has(key)) {
         const existing = itemsMap.get(key);
         itemsMap.set(key, {
-          quantity: existing.quantity + item.quantity,
-          revenue: existing.revenue + (item.price * item.quantity),
+          quantity: existing.quantity + quantity,
+          revenue: existing.revenue + (price * quantity),
         });
       } else {
         itemsMap.set(key, {
-          quantity: item.quantity,
-          revenue: item.price * item.quantity,
+          quantity: quantity,
+          revenue: price * quantity,
         });
       }
     });

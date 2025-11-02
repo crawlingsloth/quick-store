@@ -6,6 +6,7 @@
 
 import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import { generateTextSummary, copyToClipboard } from '../utils/export';
 import './HistoryTab.css';
 
 const HistoryTab = () => {
@@ -233,6 +234,36 @@ const HistoryTab = () => {
     window.URL.revokeObjectURL(url);
   };
 
+  const handleExportSummary = async () => {
+    if (orders.length === 0) {
+      alert('No orders to export');
+      return;
+    }
+
+    // Transform orders data to match the format expected by generateTextSummary
+    const transformedOrders = orders.map(order => ({
+      ...order,
+      items: order.items.map(item => ({
+        productName: item.product_name,
+        price: parseFloat(item.price),
+        quantity: item.quantity,
+      })),
+      total: parseFloat(order.total),
+      timestamp: order.created_at,
+      customerName: order.customer_name,
+      isEdited: order.is_edited,
+    }));
+
+    const summary = generateTextSummary(store.name, transformedOrders, new Date(), currencySymbol);
+    const success = await copyToClipboard(summary);
+
+    if (success) {
+      alert('Summary copied to clipboard! You can now paste it in your message.');
+    } else {
+      alert('Failed to copy summary. Please try again.');
+    }
+  };
+
   const totalRevenue = orders.reduce((sum, order) => sum + parseFloat(order.total || 0), 0);
 
   return (
@@ -252,6 +283,13 @@ const HistoryTab = () => {
           </div>
         </div>
         <div className="history-actions">
+          <button
+            className="export-btn"
+            onClick={handleExportSummary}
+            disabled={orders.length === 0 || actionLoading}
+          >
+            📋 Copy Summary
+          </button>
           <button
             className="export-btn"
             onClick={handleExport}
