@@ -7,11 +7,8 @@
 
 .history-header {
   margin-bottom: 1.5rem;
-  position: sticky;
-  top: 0;
   background: #f7fafc;
   padding: 1rem 0;
-  z-index: 5;
 }
 
 .history-stats {
