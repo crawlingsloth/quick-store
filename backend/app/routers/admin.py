@@ -100,7 +100,7 @@ async def create_user(
         username=user_data.username,
         email=user_data.email,
         password_hash=get_password_hash(user_data.password),
-        role=user_data.role,
+        role=user_data.role.upper() if isinstance(user_data.role, str) else user_data.role,
         company_id=user_data.company_id
     )
     db.add(user)
