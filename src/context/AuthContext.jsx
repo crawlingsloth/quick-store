@@ -93,7 +93,7 @@ export const AuthProvider = ({ children }) => {
     loading,
     error,
     isAuthenticated: !!user,
-    isAdmin: user?.role === 'admin',
+    isAdmin: user?.role?.toUpperCase() === 'ADMIN',
     login,
     logout,
     refreshUser,
