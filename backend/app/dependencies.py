@@ -66,14 +66,35 @@ async def get_current_admin_user(
 
 async def get_current_company(
     current_user: User = Depends(get_current_user),
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    x_company_id: Optional[str] = Header(None, alias="X-Company-ID")
 ) -> Company:
-    """Get the company for the current user"""
+    """Get the company for the current user
+
+    For admin users, X-Company-ID header is required to specify which company to access.
+    For regular users, their assigned company is used.
+    """
     if current_user.role == UserRole.ADMIN:
-        raise HTTPException(
-            status_code=status.HTTP_403_FORBIDDEN,
-            detail="Admin users don't have an associated company"
-        )
+        if not x_company_id:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Admin users must provide X-Company-ID header to access a company"
+            )
+        try:
+            company_uuid = UUID(x_company_id)
+        except (ValueError, AttributeError):
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail="Invalid company ID format"
+            )
+
+        company = db.query(Company).filter(Company.id == company_uuid).first()
+        if company is None:
+            raise HTTPException(
+                status_code=status.HTTP_404_NOT_FOUND,
+                detail="Company not found"
+            )
+        return company
 
     if current_user.company_id is None:
         raise HTTPException(

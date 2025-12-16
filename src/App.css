@@ -34,3 +34,34 @@
   font-weight: 500;
   margin: 0;
 }
+
+/* Admin Store Header */
+.admin-store-header {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  padding: 0.75rem 1rem;
+  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  color: white;
+}
+
+.back-to-admin-btn {
+  padding: 0.5rem 1rem;
+  border: none;
+  background: rgba(255, 255, 255, 0.2);
+  color: white;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.9rem;
+  font-weight: 500;
+  transition: background 0.2s;
+}
+
+.back-to-admin-btn:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.admin-store-info {
+  font-size: 0.9rem;
+  font-weight: 500;
+}

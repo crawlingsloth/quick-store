@@ -6,16 +6,17 @@
 
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import api from '../services/api';
+import api, { setCurrentCompanyId, setCurrentStoreId } from '../services/api';
 import './AdminScreen.css';
 
-const AdminScreen = () => {
+const AdminScreen = ({ onSelectStore }) => {
   const { logout } = useAuth();
-  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'companies'
+  const [activeTab, setActiveTab] = useState('users'); // 'users' | 'companies' | 'stores'
 
   // State
   const [users, setUsers] = useState([]);
   const [companies, setCompanies] = useState([]);
+  const [allStores, setAllStores] = useState([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -66,9 +67,12 @@ const AdminScreen = () => {
       if (activeTab === 'users') {
         const usersData = await api.listUsers();
         setUsers(usersData);
-      } else {
+      } else if (activeTab === 'companies') {
         const companiesData = await api.listCompanies();
         setCompanies(companiesData);
+      } else if (activeTab === 'stores') {
+        const storesData = await api.listAllStores();
+        setAllStores(storesData);
       }
     } catch (err) {
       setError(err.message || 'Failed to load data');
@@ -83,6 +87,17 @@ const AdminScreen = () => {
       setCompanies(companiesData);
     } catch (err) {
       console.error('Failed to load companies:', err);
+    }
+  };
+
+  // Handle store selection by admin
+  const handleSelectStore = (store) => {
+    // Set the company ID and store ID in localStorage
+    setCurrentCompanyId(store.company_id);
+    setCurrentStoreId(store.id);
+    // Call the parent callback to navigate to the store
+    if (onSelectStore) {
+      onSelectStore(store);
     }
   };
 
@@ -280,6 +295,12 @@ const AdminScreen = () => {
         >
           Companies
         </button>
+        <button
+          className={`tab ${activeTab === 'stores' ? 'active' : ''}`}
+          onClick={() => setActiveTab('stores')}
+        >
+          Stores
+        </button>
       </div>
 
       {error && (
@@ -428,6 +449,66 @@ const AdminScreen = () => {
                             disabled={loading}
                           >
                             Edit
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              )}
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* Stores Tab */}
+      {activeTab === 'stores' && (
+        <div className="admin-content">
+          <div className="content-header">
+            <h2>All Stores</h2>
+          </div>
+
+          {loading ? (
+            <div className="loading-state">
+              <div className="spinner"></div>
+              <p>Loading stores...</p>
+            </div>
+          ) : (
+            <div className="stores-list">
+              {allStores.length === 0 ? (
+                <div className="empty-state">
+                  <p>No stores yet</p>
+                  <p className="hint">Stores will appear here once companies create them</p>
+                </div>
+              ) : (
+                <table className="data-table">
+                  <thead>
+                    <tr>
+                      <th>Store Name</th>
+                      <th>Company</th>
+                      <th>Inventory</th>
+                      <th>Created</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {allStores.map((store) => (
+                      <tr key={store.id}>
+                        <td>{store.name}</td>
+                        <td>{store.company_name}</td>
+                        <td>
+                          <span className={`status-badge ${store.track_inventory ? 'active' : 'inactive'}`}>
+                            {store.track_inventory ? 'Tracked' : 'Not Tracked'}
+                          </span>
+                        </td>
+                        <td>{new Date(store.created_at).toLocaleDateString()}</td>
+                        <td>
+                          <button
+                            className="btn-primary"
+                            onClick={() => handleSelectStore(store)}
+                            disabled={loading}
+                          >
+                            Manage Store
                           </button>
                         </td>
                       </tr>

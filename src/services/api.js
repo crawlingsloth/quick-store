@@ -68,11 +68,37 @@ const removeCurrentStoreId = () => {
 };
 
 /**
+ * Get current company ID from localStorage (for admin users)
+ */
+const getCurrentCompanyId = () => {
+  return localStorage.getItem('current_company_id');
+};
+
+/**
+ * Set current company ID in localStorage (for admin users)
+ */
+const setCurrentCompanyId = (companyId) => {
+  if (companyId) {
+    localStorage.setItem('current_company_id', companyId);
+  } else {
+    localStorage.removeItem('current_company_id');
+  }
+};
+
+/**
+ * Remove current company ID from localStorage
+ */
+const removeCurrentCompanyId = () => {
+  localStorage.removeItem('current_company_id');
+};
+
+/**
  * Make HTTP request with authentication
  */
 const request = async (endpoint, options = {}) => {
   const token = getToken();
   const storeId = getCurrentStoreId();
+  const companyId = getCurrentCompanyId();
 
   const headers = {
     'Content-Type': 'application/json',
@@ -81,6 +107,10 @@ const request = async (endpoint, options = {}) => {
 
   if (token) {
     headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  if (companyId) {
+    headers['X-Company-ID'] = companyId;
   }
 
   if (storeId) {
@@ -208,6 +238,15 @@ const api = {
       method: 'PATCH',
       body: JSON.stringify(data),
     });
+  },
+
+  // ============ Admin - Stores ============
+
+  /**
+   * List all stores across all companies (admin only)
+   */
+  listAllStores: async () => {
+    return await request('/api/admin/stores');
   },
 
   // ============ Admin - Users ============
@@ -474,4 +513,4 @@ const api = {
 };
 
 export default api;
-export { APIError, getToken, setToken, removeToken, getCurrentStoreId, setCurrentStoreId, removeCurrentStoreId };
+export { APIError, getToken, setToken, removeToken, getCurrentStoreId, setCurrentStoreId, removeCurrentStoreId, getCurrentCompanyId, setCurrentCompanyId, removeCurrentCompanyId };

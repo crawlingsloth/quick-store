@@ -1,15 +1,32 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session, joinedload
 from typing import List
+from pydantic import BaseModel
+from uuid import UUID
+from datetime import datetime
 
 from ..database import get_db
-from ..models import User, Company
+from ..models import User, Company, Store
 from ..schemas.user import UserCreate, UserUpdate, UserResponse, UserPasswordChange
 from ..schemas.company import CompanyCreate, CompanyUpdate, CompanyResponse
+from ..schemas.store import StoreResponse
 from ..security import get_password_hash
 from ..dependencies import get_current_admin_user
 
 router = APIRouter(prefix="/api/admin", tags=["Admin"])
+
+
+class AdminStoreResponse(BaseModel):
+    """Store response with company information for admin view"""
+    id: UUID
+    name: str
+    track_inventory: bool
+    company_id: UUID
+    company_name: str
+    created_at: datetime
+
+    class Config:
+        from_attributes = True
 
 
 @router.post("/companies", response_model=CompanyResponse, status_code=status.HTTP_201_CREATED)
@@ -62,6 +79,28 @@ async def update_company(
     db.commit()
     db.refresh(company)
     return company
+
+
+@router.get("/stores", response_model=List[AdminStoreResponse])
+async def list_all_stores(
+    db: Session = Depends(get_db),
+    admin: User = Depends(get_current_admin_user)
+):
+    """List all stores across all companies (admin only)"""
+    stores = db.query(Store).options(joinedload(Store.company)).all()
+
+    result = []
+    for store in stores:
+        result.append(AdminStoreResponse(
+            id=store.id,
+            name=store.name,
+            track_inventory=store.track_inventory,
+            company_id=store.company_id,
+            company_name=store.company.name if store.company else "Unknown",
+            created_at=store.created_at
+        ))
+
+    return result
 
 
 @router.post("/users", response_model=UserResponse, status_code=status.HTTP_201_CREATED)

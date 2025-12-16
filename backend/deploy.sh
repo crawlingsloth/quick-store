@@ -47,6 +47,7 @@ echo -e "\n${BLUE}Starting container...${NC}"
 podman run -d \
     --name ${CONTAINER_NAME} \
     --env-file .env \
+    --add-host=host.containers.internal:host-gateway \
     -p ${PORT}:7878 \
     --restart unless-stopped \
     ${IMAGE_NAME}:${IMAGE_TAG}
