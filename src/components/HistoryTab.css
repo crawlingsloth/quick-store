@@ -465,8 +465,8 @@
 
 .selection-indicator {
   position: absolute;
-  top: 1rem;
-  left: 1rem;
+  top: 1.25rem;
+  left: 1.25rem;
   width: 24px;
   height: 24px;
   background: white;
@@ -477,6 +477,7 @@
   justify-content: center;
   transition: all 0.2s;
   z-index: 10;
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 }
 
 .order-card.selected .selection-indicator {
@@ -498,6 +499,10 @@
   align-items: flex-start;
   margin-bottom: 1rem;
   gap: 1rem;
+}
+
+/* Only add padding when in selection mode to make room for selection indicator */
+.order-card.selection-mode .order-header {
   padding-left: 2rem;
 }
 
