@@ -457,6 +457,12 @@
   transform: scale(1.02);
 }
 
+.order-card.swiping-left {
+  transform: translateX(-20px);
+  border-color: #667eea;
+  box-shadow: -4px 0 12px rgba(102, 126, 234, 0.3);
+}
+
 .selection-indicator {
   position: absolute;
   top: 1rem;

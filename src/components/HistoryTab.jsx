@@ -40,6 +40,9 @@ const HistoryTab = () => {
   const [touchTimer, setTouchTimer] = useState(null);
   const [lastTouchedOrder, setLastTouchedOrder] = useState(null);
   const [isHolding, setIsHolding] = useState(false);
+  const [swipeStartX, setSwipeStartX] = useState(null);
+  const [swipeStartY, setSwipeStartY] = useState(null);
+  const [isSwiping, setIsSwiping] = useState(false);
 
   const store = getCurrentStore();
 
@@ -218,14 +221,18 @@ const HistoryTab = () => {
   };
 
   const handleCardTouchStart = (order, event) => {
-    // Store which order is being touched
+    // Store touch position for swipe detection
+    const touch = event.touches[0];
+    setSwipeStartX(touch.clientX);
+    setSwipeStartY(touch.clientY);
+    setIsSwiping(false);
     setLastTouchedOrder(order.id);
     setIsHolding(true);
     
     // Set a timer to enter selection mode after 500ms of holding
     const timer = setTimeout(() => {
       // Check if we're still touching the same order
-      if (lastTouchedOrder === order.id && !selectionMode) {
+      if (lastTouchedOrder === order.id && !selectionMode && !isSwiping) {
         setSelectionMode(true);
         toggleOrderSelection(order.id);
         
@@ -239,6 +246,30 @@ const HistoryTab = () => {
     setTouchTimer(timer);
   };
 
+  const handleCardTouchMove = (order, event) => {
+    // Detect swipe gesture
+    const touch = event.touches[0];
+    const deltaX = touch.clientX - swipeStartX;
+    const deltaY = touch.clientY - swipeStartY;
+    
+    // Check if it's a horizontal swipe (more horizontal than vertical movement)
+    if (Math.abs(deltaX) > Math.abs(deltaY) && Math.abs(deltaX) > 30) {
+      setIsSwiping(true);
+      
+      // Check if it's a left swipe (negative deltaX)
+      if (deltaX < -50 && !selectionMode) {
+        // Enter selection mode on left swipe
+        setSelectionMode(true);
+        toggleOrderSelection(order.id);
+        
+        // Provide haptic feedback
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }
+    }
+  };
+
   const handleCardTouchEnd = (order, event) => {
     // Clear the hold timer
     if (touchTimer) {
@@ -247,9 +278,12 @@ const HistoryTab = () => {
     }
     
     setIsHolding(false);
+    setIsSwiping(false);
+    setSwipeStartX(null);
+    setSwipeStartY(null);
     
     // If this was a quick tap (not a hold) and we're in selection mode, toggle selection
-    if (selectionMode && lastTouchedOrder === order.id) {
+    if (selectionMode && lastTouchedOrder === order.id && !isSwiping) {
       toggleOrderSelection(order.id);
     }
     
@@ -625,7 +659,7 @@ const HistoryTab = () => {
 
       {!selectionMode && orders.length > 0 && (
         <div className="selection-hint">
-          <p>💡 Hold any card to enter selection mode • Double-click to select</p>
+          <p>💡 Swipe left on any card to enter selection mode • Double-click to select</p>
         </div>
       )}
 
@@ -655,7 +689,7 @@ const HistoryTab = () => {
           {orders.map((order) => (
             <div 
               key={order.id} 
-              className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''} ${selectionMode ? 'selection-mode' : ''} ${isHolding && lastTouchedOrder === order.id ? 'holding' : ''}`}
+              className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''} ${selectionMode ? 'selection-mode' : ''} ${isHolding && lastTouchedOrder === order.id ? 'holding' : ''} ${isSwiping && lastTouchedOrder === order.id ? 'swiping-left' : ''}`}
               onClick={(e) => {
                 if (!selectionMode) {
                   // Don't interfere with buttons
@@ -665,8 +699,8 @@ const HistoryTab = () => {
                 }
                 handleCardClick(order, e);
               }}
-              onDoubleClick={(e) => handleCardDoubleClick(order, e)}
               onTouchStart={(e) => handleCardTouchStart(order, e)}
+              onTouchMove={(e) => handleCardTouchMove(order, e)}
               onTouchEnd={(e) => handleCardTouchEnd(order, e)}
               onMouseDown={(e) => handleCardMouseDown(order, e)}
               onMouseUp={(e) => handleCardMouseUp(order, e)}
