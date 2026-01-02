@@ -1,5 +1,5 @@
 // Version will be updated during build
-const CACHE_NAME = 'quick-store-v0-0-2-1767343620223';
+const CACHE_NAME = 'quick-store-v0-0-2-1767344092626';
 const urlsToCache = [
   '/',
   '/index.html',

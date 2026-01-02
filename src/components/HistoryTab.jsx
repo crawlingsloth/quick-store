@@ -36,6 +36,9 @@ const HistoryTab = () => {
   const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
   const [bulkActionLoading, setBulkActionLoading] = useState(false);
   const [bulkActionResults, setBulkActionResults] = useState(null);
+  const [selectionMode, setSelectionMode] = useState(false);
+  const [touchTimer, setTouchTimer] = useState(null);
+  const [lastTouchedOrder, setLastTouchedOrder] = useState(null);
 
   const store = getCurrentStore();
 
@@ -79,9 +82,10 @@ const HistoryTab = () => {
     loadOrders();
   }, [store, dateFilter, customDate]);
 
-  // Clear selection when date filter changes
+  // Clear selection and exit selection mode when date filter changes
   useEffect(() => {
     clearSelection();
+    setSelectionMode(false);
   }, [dateFilter, customDate]);
 
   if (!store) return null;
@@ -191,6 +195,69 @@ const HistoryTab = () => {
       }
       return newSet;
     });
+  };
+
+  const handleCardClick = (order, event) => {
+    // If in selection mode, toggle selection
+    if (selectionMode) {
+      toggleOrderSelection(order.id);
+      return;
+    }
+
+    // If clicking on a button or link, don't handle card click
+    if (event.target.tagName === 'BUTTON' || event.target.closest('button')) {
+      return;
+    }
+
+    // Single click outside selection mode - do nothing for now
+    // Could potentially show order details in a modal here
+  };
+
+  const handleCardTouchStart = (order, event) => {
+    // Prevent default to avoid scrolling while holding
+    event.preventDefault();
+    
+    setLastTouchedOrder(order.id);
+    
+    // Set a timer to enter selection mode after 500ms of holding
+    const timer = setTimeout(() => {
+      if (lastTouchedOrder === order.id) {
+        setSelectionMode(true);
+        toggleOrderSelection(order.id);
+        
+        // Provide haptic feedback if available (mobile devices)
+        if (navigator.vibrate) {
+          navigator.vibrate(50);
+        }
+      }
+    }, 500);
+    
+    setTouchTimer(timer);
+  };
+
+  const handleCardTouchEnd = (order, event) => {
+    // Clear the hold timer
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      setTouchTimer(null);
+    }
+    
+    // If we're not in selection mode and this wasn't a hold, handle as a tap
+    if (!selectionMode && lastTouchedOrder === order.id) {
+      // Small delay to ensure this doesn't fire if it was actually a hold
+      setTimeout(() => {
+        if (!selectionMode) {
+          handleCardClick(order, event);
+        }
+      }, 100);
+    }
+    
+    setLastTouchedOrder(null);
+  };
+
+  const exitSelectionMode = () => {
+    setSelectionMode(false);
+    clearSelection();
   };
 
   const selectAllUnpaid = () => {
@@ -435,81 +502,95 @@ const HistoryTab = () => {
         </div>
       </div>
 
-      {/* Bulk Selection UI */}
-      {orders.length > 0 && (
-        <div className="bulk-select-section">
-          <div className="bulk-select-controls">
-            {orders.some((order) => !order.is_paid) && (
-              <label className="bulk-select-label">
-                <input
-                  type="checkbox"
-                  checked={
-                    selectedOrderIds.size > 0 &&
-                    orders.filter((o) => !o.is_paid).every((o) => selectedOrderIds.has(o.id))
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      selectAllUnpaid();
-                    } else {
-                      clearSelection();
-                    }
-                  }}
-                  disabled={bulkActionLoading || actionLoading}
-                />
-                <span>Select All Unpaid ({orders.filter((o) => !o.is_paid).length})</span>
-              </label>
-            )}
-            {orders.some((order) => order.is_paid) && (
-              <label className="bulk-select-label">
-                <input
-                  type="checkbox"
-                  checked={
-                    selectedOrderIds.size > 0 &&
-                    orders.filter((o) => o.is_paid).every((o) => selectedOrderIds.has(o.id))
-                  }
-                  onChange={(e) => {
-                    if (e.target.checked) {
-                      selectAllPaid();
-                    } else {
-                      clearSelection();
-                    }
-                  }}
-                  disabled={bulkActionLoading || actionLoading}
-                />
-                <span>Select All Paid ({orders.filter((o) => o.is_paid).length})</span>
-              </label>
-            )}
+      {/* Selection Mode Controls */}
+      {(selectionMode || selectedOrderIds.size > 0) && (
+        <div className="selection-mode-section">
+          <div className="selection-mode-header">
+            <div className="selection-mode-info">
+              <span className="selection-mode-title">
+                {selectionMode ? 'Selection Mode' : 'Selected'}
+              </span>
+              <span className="selection-count">
+                {selectedOrderIds.size} {selectedOrderIds.size === 1 ? 'order' : 'orders'} selected
+              </span>
+            </div>
+            <button
+              className="exit-selection-btn"
+              onClick={exitSelectionMode}
+              disabled={bulkActionLoading || actionLoading}
+            >
+              ✕ Exit
+            </button>
           </div>
 
+          {selectionMode && (
+            <div className="selection-controls">
+              {orders.some((order) => !order.is_paid) && (
+                <button
+                  className="select-all-btn"
+                  onClick={() => selectAllUnpaid()}
+                  disabled={bulkActionLoading || actionLoading}
+                >
+                  Select All Unpaid ({orders.filter((o) => !o.is_paid).length})
+                </button>
+              )}
+              {orders.some((order) => order.is_paid) && (
+                <button
+                  className="select-all-btn"
+                  onClick={() => selectAllPaid()}
+                  disabled={bulkActionLoading || actionLoading}
+                >
+                  Select All Paid ({orders.filter((o) => o.is_paid).length})
+                </button>
+              )}
+              <button
+                className="select-all-btn"
+                onClick={() => {
+                  const allIds = orders.map((o) => o.id);
+                  setSelectedOrderIds(new Set(allIds));
+                }}
+                disabled={bulkActionLoading || actionLoading}
+              >
+                Select All ({orders.length})
+              </button>
+            </div>
+          )}
+
           {selectedOrderIds.size > 0 && (
-            <div className="bulk-actions">
+            <div className="selection-actions">
               {orders.some((o) => selectedOrderIds.has(o.id) && !o.is_paid) && (
                 <button
-                  className="bulk-action-btn mark-paid"
+                  className="selection-action-btn mark-paid"
                   onClick={() => handleBulkUpdatePayment(true)}
                   disabled={bulkActionLoading || actionLoading}
                 >
-                  ✓ Mark {selectedOrderIds.size} Selected as Paid
+                  ✓ Mark {selectedOrderIds.size} as Paid
                 </button>
               )}
               {orders.some((o) => selectedOrderIds.has(o.id) && o.is_paid) && (
                 <button
-                  className="bulk-action-btn mark-unpaid"
+                  className="selection-action-btn mark-unpaid"
                   onClick={() => handleBulkUpdatePayment(false)}
                   disabled={bulkActionLoading || actionLoading}
                 >
-                  💳 Mark {selectedOrderIds.size} Selected as Unpaid
+                  💳 Mark {selectedOrderIds.size} as Unpaid
                 </button>
               )}
               <button
-                className="bulk-action-btn cancel"
-                onClick={clearSelection}
+                className="selection-action-btn clear"
+                onClick={() => setSelectedOrderIds(new Set())}
                 disabled={bulkActionLoading || actionLoading}
               >
                 Clear Selection
               </button>
             </div>
           )}
+        </div>
+      )}
+
+      {!selectionMode && orders.length > 0 && (
+        <div className="selection-hint">
+          <p>💡 Hold any card to enter selection mode</p>
         </div>
       )}
 
@@ -537,15 +618,24 @@ const HistoryTab = () => {
       ) : (
         <div className="orders-list">
           {orders.map((order) => (
-            <div key={order.id} className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''}`}>
+            <div 
+              key={order.id} 
+              className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''} ${selectionMode ? 'selection-mode' : ''}`}
+              onClick={(e) => handleCardClick(order, e)}
+              onTouchStart={(e) => handleCardTouchStart(order, e)}
+              onTouchEnd={(e) => handleCardTouchEnd(order, e)}
+              onMouseDown={(e) => {
+                if (selectionMode) {
+                  e.preventDefault();
+                }
+              }}
+            >
+              {selectionMode && (
+                <div className="selection-indicator">
+                  {selectedOrderIds.has(order.id) && <span className="checkmark">✓</span>}
+                </div>
+              )}
               <div className="order-header">
-                <input
-                  type="checkbox"
-                  className="order-checkbox"
-                  checked={selectedOrderIds.has(order.id)}
-                  onChange={() => toggleOrderSelection(order.id)}
-                  disabled={bulkActionLoading || actionLoading}
-                />
                 <div className="order-customer">
                   {order.customer_name || 'Walk-in'}
                   {order.is_edited && <span className="edited-badge">EDITED</span>}
@@ -576,27 +666,31 @@ const HistoryTab = () => {
                   {parseFloat(order.total || 0).toFixed(2)}
                 </div>
                 <div className="order-actions">
-                  <button
-                    className={`payment-btn ${order.is_paid ? 'paid' : 'unpaid'}`}
-                    onClick={() => handleTogglePayment(order)}
-                    disabled={actionLoading}
-                  >
-                    {order.is_paid ? '💳 Mark Unpaid' : '✓ Mark Paid'}
-                  </button>
-                  <button
-                    className="edit-btn"
-                    onClick={() => handleEditOrder(order)}
-                    disabled={actionLoading}
-                  >
-                    ✏️ Edit
-                  </button>
-                  <button
-                    className="delete-btn"
-                    onClick={() => handleDeleteOrder(order)}
-                    disabled={actionLoading}
-                  >
-                    🗑️
-                  </button>
+                  {!selectionMode && (
+                    <>
+                      <button
+                        className={`payment-btn ${order.is_paid ? 'paid' : 'unpaid'}`}
+                        onClick={() => handleTogglePayment(order)}
+                        disabled={actionLoading}
+                      >
+                        {order.is_paid ? '💳 Mark Unpaid' : '✓ Mark Paid'}
+                      </button>
+                      <button
+                        className="edit-btn"
+                        onClick={() => handleEditOrder(order)}
+                        disabled={actionLoading}
+                      >
+                        ✏️ Edit
+                      </button>
+                      <button
+                        className="delete-btn"
+                        onClick={() => handleDeleteOrder(order)}
+                        disabled={actionLoading}
+                      >
+                        🗑️
+                      </button>
+                    </>
+                  )}
                 </div>
               </div>
             </div>
