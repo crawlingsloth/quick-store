@@ -39,6 +39,7 @@ const HistoryTab = () => {
   const [selectionMode, setSelectionMode] = useState(false);
   const [touchTimer, setTouchTimer] = useState(null);
   const [lastTouchedOrder, setLastTouchedOrder] = useState(null);
+  const [isHolding, setIsHolding] = useState(false);
 
   const store = getCurrentStore();
 
@@ -204,24 +205,27 @@ const HistoryTab = () => {
       return;
     }
 
-    // If clicking on a button or link, don't handle card click
-    if (event.target.tagName === 'BUTTON' || event.target.closest('button')) {
-      return;
-    }
+    // Outside selection mode, don't do anything on single click
+    // Users need to hold or double-click to enter selection mode
+  };
 
-    // Single click outside selection mode - do nothing for now
-    // Could potentially show order details in a modal here
+  const handleCardDoubleClick = (order, event) => {
+    // Double-click to enter selection mode and select this card
+    if (!selectionMode) {
+      setSelectionMode(true);
+      toggleOrderSelection(order.id);
+    }
   };
 
   const handleCardTouchStart = (order, event) => {
-    // Prevent default to avoid scrolling while holding
-    event.preventDefault();
-    
+    // Store which order is being touched
     setLastTouchedOrder(order.id);
+    setIsHolding(true);
     
     // Set a timer to enter selection mode after 500ms of holding
     const timer = setTimeout(() => {
-      if (lastTouchedOrder === order.id) {
+      // Check if we're still touching the same order
+      if (lastTouchedOrder === order.id && !selectionMode) {
         setSelectionMode(true);
         toggleOrderSelection(order.id);
         
@@ -242,14 +246,45 @@ const HistoryTab = () => {
       setTouchTimer(null);
     }
     
-    // If we're not in selection mode and this wasn't a hold, handle as a tap
-    if (!selectionMode && lastTouchedOrder === order.id) {
-      // Small delay to ensure this doesn't fire if it was actually a hold
-      setTimeout(() => {
-        if (!selectionMode) {
-          handleCardClick(order, event);
+    setIsHolding(false);
+    
+    // If this was a quick tap (not a hold) and we're in selection mode, toggle selection
+    if (selectionMode && lastTouchedOrder === order.id) {
+      toggleOrderSelection(order.id);
+    }
+    
+    setLastTouchedOrder(null);
+  };
+
+  const handleCardMouseDown = (order, event) => {
+    // For desktop - handle long press with mouse
+    if (event.button === 0) { // Left click only
+      setLastTouchedOrder(order.id);
+      setIsHolding(true);
+      
+      const timer = setTimeout(() => {
+        if (lastTouchedOrder === order.id && !selectionMode) {
+          setSelectionMode(true);
+          toggleOrderSelection(order.id);
         }
-      }, 100);
+      }, 500);
+      
+      setTouchTimer(timer);
+    }
+  };
+
+  const handleCardMouseUp = (order, event) => {
+    // Clear timer for desktop
+    if (touchTimer) {
+      clearTimeout(touchTimer);
+      setTouchTimer(null);
+    }
+    
+    setIsHolding(false);
+    
+    // If in selection mode and this was a click (not hold), toggle selection
+    if (selectionMode && lastTouchedOrder === order.id) {
+      toggleOrderSelection(order.id);
     }
     
     setLastTouchedOrder(null);
@@ -590,7 +625,7 @@ const HistoryTab = () => {
 
       {!selectionMode && orders.length > 0 && (
         <div className="selection-hint">
-          <p>💡 Hold any card to enter selection mode</p>
+          <p>💡 Hold any card to enter selection mode • Double-click to select</p>
         </div>
       )}
 
@@ -620,14 +655,28 @@ const HistoryTab = () => {
           {orders.map((order) => (
             <div 
               key={order.id} 
-              className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''} ${selectionMode ? 'selection-mode' : ''}`}
-              onClick={(e) => handleCardClick(order, e)}
+              className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''} ${selectionMode ? 'selection-mode' : ''} ${isHolding && lastTouchedOrder === order.id ? 'holding' : ''}`}
+              onClick={(e) => {
+                if (!selectionMode) {
+                  // Don't interfere with buttons
+                  if (e.target.tagName === 'BUTTON' || e.target.closest('button')) {
+                    return;
+                  }
+                }
+                handleCardClick(order, e);
+              }}
+              onDoubleClick={(e) => handleCardDoubleClick(order, e)}
               onTouchStart={(e) => handleCardTouchStart(order, e)}
               onTouchEnd={(e) => handleCardTouchEnd(order, e)}
-              onMouseDown={(e) => {
-                if (selectionMode) {
-                  e.preventDefault();
+              onMouseDown={(e) => handleCardMouseDown(order, e)}
+              onMouseUp={(e) => handleCardMouseUp(order, e)}
+              onMouseLeave={(e) => {
+                // Clear timer if mouse leaves card
+                if (touchTimer) {
+                  clearTimeout(touchTimer);
+                  setTouchTimer(null);
                 }
+                setIsHolding(false);
               }}
             >
               {selectionMode && (

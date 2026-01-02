@@ -451,6 +451,12 @@
   transform: translateY(-1px);
 }
 
+.order-card.holding {
+  border-color: #667eea;
+  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.2);
+  transform: scale(1.02);
+}
+
 .selection-indicator {
   position: absolute;
   top: 1rem;
