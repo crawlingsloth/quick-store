@@ -18,6 +18,7 @@ const HistoryTab = () => {
     updateOrder,
     deleteOrder,
     clearTodayOrders,
+    bulkUpdateOrderPayment,
     currencySymbol,
     loading,
   } = useApp();
@@ -32,6 +33,9 @@ const HistoryTab = () => {
   const [ordersLoading, setOrdersLoading] = useState(false);
   const [dateFilter, setDateFilter] = useState('today');
   const [customDate, setCustomDate] = useState('');
+  const [selectedOrderIds, setSelectedOrderIds] = useState(new Set());
+  const [bulkActionLoading, setBulkActionLoading] = useState(false);
+  const [bulkActionResults, setBulkActionResults] = useState(null);
 
   const store = getCurrentStore();
 
@@ -74,6 +78,11 @@ const HistoryTab = () => {
   useEffect(() => {
     loadOrders();
   }, [store, dateFilter, customDate]);
+
+  // Clear selection when date filter changes
+  useEffect(() => {
+    clearSelection();
+  }, [dateFilter, customDate]);
 
   if (!store) return null;
 
@@ -169,6 +178,77 @@ const HistoryTab = () => {
     }
 
     setActionLoading(false);
+  };
+
+  // Bulk selection functions
+  const toggleOrderSelection = (orderId) => {
+    setSelectedOrderIds((prev) => {
+      const newSet = new Set(prev);
+      if (newSet.has(orderId)) {
+        newSet.delete(orderId);
+      } else {
+        newSet.add(orderId);
+      }
+      return newSet;
+    });
+  };
+
+  const selectAllUnpaid = () => {
+    const unpaidOrderIds = orders.filter((order) => !order.is_paid).map((order) => order.id);
+    setSelectedOrderIds(new Set(unpaidOrderIds));
+  };
+
+  const selectAllPaid = () => {
+    const paidOrderIds = orders.filter((order) => order.is_paid).map((order) => order.id);
+    setSelectedOrderIds(new Set(paidOrderIds));
+  };
+
+  const clearSelection = () => {
+    setSelectedOrderIds(new Set());
+  };
+
+  const handleBulkUpdatePayment = async (isPaid) => {
+    const orderIdsArray = Array.from(selectedOrderIds);
+    const count = orderIdsArray.length;
+
+    // Confirmation for 5+ orders
+    if (count >= 5) {
+      const action = isPaid ? 'paid' : 'unpaid';
+      if (!confirm(`Mark ${count} orders as ${action}? This action will update all selected orders.`)) {
+        return;
+      }
+    }
+
+    setBulkActionLoading(true);
+    setActionError('');
+    setBulkActionResults(null);
+
+    const result = await bulkUpdateOrderPayment(orderIdsArray, isPaid);
+
+    if (result.success) {
+      const { successful, failed, results } = result.results;
+
+      if (failed === 0) {
+        // Complete success
+        setActionError('');
+        clearSelection();
+        await loadOrders();
+      } else {
+        // Partial failure
+        setBulkActionResults(results);
+        // Update selection to only include failed orders
+        const failedIds = results.filter((r) => !r.success).map((r) => r.order_id);
+        setSelectedOrderIds(new Set(failedIds));
+        await loadOrders();
+        setActionError(
+          `Marked ${successful} of ${count} orders. ${failed} failed. Failed orders remain selected.`
+        );
+      }
+    } else {
+      setActionError(result.error || 'Failed to update payment status');
+    }
+
+    setBulkActionLoading(false);
   };
 
   const updateEditItemQuantity = (index, quantity) => {
@@ -355,6 +435,84 @@ const HistoryTab = () => {
         </div>
       </div>
 
+      {/* Bulk Selection UI */}
+      {orders.length > 0 && (
+        <div className="bulk-select-section">
+          <div className="bulk-select-controls">
+            {orders.some((order) => !order.is_paid) && (
+              <label className="bulk-select-label">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedOrderIds.size > 0 &&
+                    orders.filter((o) => !o.is_paid).every((o) => selectedOrderIds.has(o.id))
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      selectAllUnpaid();
+                    } else {
+                      clearSelection();
+                    }
+                  }}
+                  disabled={bulkActionLoading || actionLoading}
+                />
+                <span>Select All Unpaid ({orders.filter((o) => !o.is_paid).length})</span>
+              </label>
+            )}
+            {orders.some((order) => order.is_paid) && (
+              <label className="bulk-select-label">
+                <input
+                  type="checkbox"
+                  checked={
+                    selectedOrderIds.size > 0 &&
+                    orders.filter((o) => o.is_paid).every((o) => selectedOrderIds.has(o.id))
+                  }
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      selectAllPaid();
+                    } else {
+                      clearSelection();
+                    }
+                  }}
+                  disabled={bulkActionLoading || actionLoading}
+                />
+                <span>Select All Paid ({orders.filter((o) => o.is_paid).length})</span>
+              </label>
+            )}
+          </div>
+
+          {selectedOrderIds.size > 0 && (
+            <div className="bulk-actions">
+              {orders.some((o) => selectedOrderIds.has(o.id) && !o.is_paid) && (
+                <button
+                  className="bulk-action-btn mark-paid"
+                  onClick={() => handleBulkUpdatePayment(true)}
+                  disabled={bulkActionLoading || actionLoading}
+                >
+                  ✓ Mark {selectedOrderIds.size} Selected as Paid
+                </button>
+              )}
+              {orders.some((o) => selectedOrderIds.has(o.id) && o.is_paid) && (
+                <button
+                  className="bulk-action-btn mark-unpaid"
+                  onClick={() => handleBulkUpdatePayment(false)}
+                  disabled={bulkActionLoading || actionLoading}
+                >
+                  💳 Mark {selectedOrderIds.size} Selected as Unpaid
+                </button>
+              )}
+              <button
+                className="bulk-action-btn cancel"
+                onClick={clearSelection}
+                disabled={bulkActionLoading || actionLoading}
+              >
+                Clear Selection
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+
       {actionError && (
         <div className="error-message">
           {actionError}
@@ -379,8 +537,15 @@ const HistoryTab = () => {
       ) : (
         <div className="orders-list">
           {orders.map((order) => (
-            <div key={order.id} className="order-card">
+            <div key={order.id} className={`order-card ${selectedOrderIds.has(order.id) ? 'selected' : ''}`}>
               <div className="order-header">
+                <input
+                  type="checkbox"
+                  className="order-checkbox"
+                  checked={selectedOrderIds.has(order.id)}
+                  onChange={() => toggleOrderSelection(order.id)}
+                  disabled={bulkActionLoading || actionLoading}
+                />
                 <div className="order-customer">
                   {order.customer_name || 'Walk-in'}
                   {order.is_edited && <span className="edited-badge">EDITED</span>}

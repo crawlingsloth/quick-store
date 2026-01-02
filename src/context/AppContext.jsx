@@ -539,6 +539,23 @@ export const AppProvider = ({ children }) => {
     }
   };
 
+  const bulkUpdateOrderPayment = async (orderIds, isPaid) => {
+    if (!store) return { success: false, error: 'No store selected' };
+
+    setLoading(true);
+    setError(null);
+
+    try {
+      const result = await api.bulkUpdateOrderPayment(orderIds, isPaid);
+      return { success: true, results: result };
+    } catch (err) {
+      setError(err.message);
+      return { success: false, error: err.message };
+    } finally {
+      setLoading(false);
+    }
+  };
+
   // ============ CUSTOMER OPERATIONS ============
 
   const getCustomerNames = async () => {
@@ -602,6 +619,7 @@ export const AppProvider = ({ children }) => {
     getTodayOrders,
     getOrders,
     clearTodayOrders,
+    bulkUpdateOrderPayment,
 
     // Customer operations
     getCustomerNames,

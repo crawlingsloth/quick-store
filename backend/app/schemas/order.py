@@ -48,3 +48,21 @@ class OrderResponse(OrderBase):
 
     class Config:
         from_attributes = True
+
+
+class BulkUpdatePaymentRequest(BaseModel):
+    order_ids: List[UUID] = Field(..., min_length=1, max_length=100)
+    is_paid: bool
+
+
+class BulkUpdateResult(BaseModel):
+    order_id: UUID
+    success: bool
+    error: Optional[str] = None
+
+
+class BulkUpdatePaymentResponse(BaseModel):
+    total: int
+    successful: int
+    failed: int
+    results: List[BulkUpdateResult]

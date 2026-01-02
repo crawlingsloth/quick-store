@@ -8,7 +8,7 @@ from decimal import Decimal
 
 from ..database import get_db
 from ..models import Order, OrderItem, OrderEditHistory, Product, Store, User, CustomerName
-from ..schemas.order import OrderCreate, OrderUpdate, OrderResponse
+from ..schemas.order import OrderCreate, OrderUpdate, OrderResponse, BulkUpdatePaymentRequest, BulkUpdatePaymentResponse, BulkUpdateResult
 from ..dependencies import get_current_store, get_current_user
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
@@ -319,6 +319,72 @@ async def update_order(
     db.commit()
     db.refresh(order)
     return order
+
+
+@router.post("/bulk/update-payment", response_model=BulkUpdatePaymentResponse)
+async def bulk_update_payment(
+    request: BulkUpdatePaymentRequest,
+    store: Store = Depends(get_current_store),
+    db: Session = Depends(get_db)
+):
+    """Bulk update payment status for multiple orders"""
+    results = []
+    successful = 0
+    failed = 0
+
+    # Validate all orders belong to the current store
+    orders = db.query(Order).filter(
+        Order.id.in_(request.order_ids),
+        Order.store_id == store.id
+    ).all()
+
+    # Create a map of found orders
+    order_map = {str(order.id): order for order in orders}
+
+    # Process each order ID
+    for order_id in request.order_ids:
+        order_id_str = str(order_id)
+
+        if order_id_str not in order_map:
+            # Order not found or doesn't belong to store
+            results.append(BulkUpdateResult(
+                order_id=order_id,
+                success=False,
+                error="Order not found or access denied"
+            ))
+            failed += 1
+            continue
+
+        try:
+            # Update payment status
+            order = order_map[order_id_str]
+            order.is_paid = request.is_paid
+            db.commit()
+
+            results.append(BulkUpdateResult(
+                order_id=order_id,
+                success=True
+            ))
+            successful += 1
+
+        except Exception as e:
+            db.rollback()
+            results.append(BulkUpdateResult(
+                order_id=order_id,
+                success=False,
+                error=str(e)
+            ))
+            failed += 1
+
+    # Return appropriate status code
+    response = BulkUpdatePaymentResponse(
+        total=len(request.order_ids),
+        successful=successful,
+        failed=failed,
+        results=results
+    )
+
+    return response
 
 
 @router.delete("/{order_id}", status_code=status.HTTP_204_NO_CONTENT)

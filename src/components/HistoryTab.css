@@ -243,6 +243,109 @@
   background: #f3f4f6;
 }
 
+/* Bulk Selection UI */
+.bulk-select-section {
+  background: white;
+  border-radius: 12px;
+  padding: 1.25rem;
+  margin-bottom: 1.5rem;
+  border: 2px solid #e5e7eb;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
+}
+
+.bulk-select-controls {
+  display: flex;
+  gap: 1.5rem;
+  flex-wrap: wrap;
+  margin-bottom: 1rem;
+}
+
+.bulk-select-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  font-weight: 600;
+  color: #374151;
+  font-size: 0.9375rem;
+  user-select: none;
+}
+
+.bulk-select-label input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+}
+
+.bulk-select-label input[type="checkbox"]:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.bulk-actions {
+  display: flex;
+  gap: 0.75rem;
+  flex-wrap: wrap;
+}
+
+.bulk-action-btn {
+  padding: 0.75rem 1.5rem;
+  border: none;
+  border-radius: 8px;
+  font-weight: 600;
+  font-size: 0.9375rem;
+  cursor: pointer;
+  transition: all 0.2s;
+  min-height: 44px;
+  box-shadow: 0 2px 6px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-action-btn:hover:not(:disabled) {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.15);
+}
+
+.bulk-action-btn:active:not(:disabled) {
+  transform: translateY(0);
+  box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+}
+
+.bulk-action-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+  transform: none;
+}
+
+.bulk-action-btn.mark-paid {
+  background: linear-gradient(135deg, #10b981 0%, #059669 100%);
+  color: white;
+}
+
+.bulk-action-btn.mark-paid:hover:not(:disabled) {
+  background: linear-gradient(135deg, #059669 0%, #047857 100%);
+}
+
+.bulk-action-btn.mark-unpaid {
+  background: linear-gradient(135deg, #667eea 0%, #5568d3 100%);
+  color: white;
+}
+
+.bulk-action-btn.mark-unpaid:hover:not(:disabled) {
+  background: linear-gradient(135deg, #5568d3 0%, #4c51bf 100%);
+}
+
+.bulk-action-btn.cancel {
+  background: white;
+  color: #6b7280;
+  border: 2px solid #e5e7eb;
+}
+
+.bulk-action-btn.cancel:hover:not(:disabled) {
+  background: #f9fafb;
+  border-color: #d1d5db;
+}
+
 .orders-list {
   display: flex;
   flex-direction: column;
@@ -262,6 +365,26 @@
   border-color: #cbd5e0;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.12);
   transform: translateY(-2px);
+}
+
+.order-card.selected {
+  border-color: #667eea;
+  background: linear-gradient(135deg, #f0f4ff 0%, #e8eeff 100%);
+  box-shadow: 0 4px 12px rgba(102, 126, 234, 0.25);
+}
+
+.order-checkbox {
+  width: 20px;
+  height: 20px;
+  cursor: pointer;
+  accent-color: #667eea;
+  flex-shrink: 0;
+  margin-right: 0.75rem;
+}
+
+.order-checkbox:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
 }
 
 .order-header {

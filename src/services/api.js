@@ -477,6 +477,19 @@ const api = {
     });
   },
 
+  /**
+   * Bulk update payment status for multiple orders
+   */
+  bulkUpdateOrderPayment: async (orderIds, isPaid) => {
+    return await request('/api/orders/bulk/update-payment', {
+      method: 'POST',
+      body: JSON.stringify({
+        order_ids: orderIds,
+        is_paid: isPaid,
+      }),
+    });
+  },
+
   // ============ Sessions ============
 
   /**
