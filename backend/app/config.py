@@ -1,5 +1,5 @@
 from pydantic_settings import BaseSettings
-from typing import List
+from typing import List, Optional
 
 
 class Settings(BaseSettings):
@@ -13,6 +13,16 @@ class Settings(BaseSettings):
 
     # CORS
     CORS_ORIGINS: str = "http://localhost:5173"
+
+    # Admin User Configuration (for seed_admin.py)
+    ADMIN_USERNAME: Optional[str] = "admin"
+    ADMIN_EMAIL: Optional[str] = "admin@quick-store.com"
+    ADMIN_PASSWORD: Optional[str] = None
+
+    # Company Configuration (for seed_admin.py)
+    COMPANY_NAME: Optional[str] = "QuickStore"
+    COMPANY_CURRENCY: Optional[str] = "$"
+    COMPANY_MAX_STORES: Optional[int] = 10
 
     class Config:
         env_file = ".env"

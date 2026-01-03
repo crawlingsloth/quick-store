@@ -8,7 +8,7 @@ from ..database import Base
 
 
 class Company(Base):
-    __tablename__ = "companies"
+    __tablename__ = "quick_store__companies"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     name = Column(String, nullable=False)

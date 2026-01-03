@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class Store(Base):
-    __tablename__ = "stores"
+    __tablename__ = "quick_store__stores"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    company_id = Column(UUID(as_uuid=True), ForeignKey("companies.id", ondelete="CASCADE"), nullable=False, index=True)
+    company_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__companies.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     track_inventory = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)

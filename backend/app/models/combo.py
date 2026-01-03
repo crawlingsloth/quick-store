@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class Combo(Base):
-    __tablename__ = "combos"
+    __tablename__ = "quick_store__combos"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__stores.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     total_price = Column(Numeric(10, 2), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
@@ -22,11 +22,11 @@ class Combo(Base):
 
 
 class ComboItem(Base):
-    __tablename__ = "combo_items"
+    __tablename__ = "quick_store__combo_items"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    combo_id = Column(UUID(as_uuid=True), ForeignKey("combos.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    combo_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__combos.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__products.id", ondelete="CASCADE"), nullable=False)
     quantity = Column(Integer, nullable=False)
 
     # Relationships

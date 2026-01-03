@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class Product(Base):
-    __tablename__ = "products"
+    __tablename__ = "quick_store__products"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__stores.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)
     category = Column(String, nullable=True)

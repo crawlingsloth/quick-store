@@ -8,16 +8,16 @@ from ..database import Base
 
 
 class Order(Base):
-    __tablename__ = "orders"
+    __tablename__ = "quick_store__orders"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__stores.id", ondelete="CASCADE"), nullable=False, index=True)
     customer_name = Column(String, nullable=True)
     total = Column(Numeric(10, 2), nullable=False)
     is_paid = Column(Boolean, default=False, nullable=False)
     is_edited = Column(Boolean, default=False, nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False, index=True)
-    created_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("quick_store__users.id"), nullable=False)
 
     # Relationships
     store = relationship("Store", back_populates="orders")
@@ -27,11 +27,11 @@ class Order(Base):
 
 
 class OrderItem(Base):
-    __tablename__ = "order_items"
+    __tablename__ = "quick_store__order_items"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
-    product_id = Column(UUID(as_uuid=True), ForeignKey("products.id", ondelete="SET NULL"), nullable=True)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    product_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__products.id", ondelete="SET NULL"), nullable=True)
     product_name = Column(String, nullable=False)  # Snapshot for history
     quantity = Column(Integer, nullable=False)
     price = Column(Numeric(10, 2), nullable=False)  # Snapshot for history
@@ -42,12 +42,12 @@ class OrderItem(Base):
 
 
 class OrderEditHistory(Base):
-    __tablename__ = "order_edit_history"
+    __tablename__ = "quick_store__order_edit_history"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    order_id = Column(UUID(as_uuid=True), ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, index=True)
+    order_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__orders.id", ondelete="CASCADE"), nullable=False, index=True)
     edited_at = Column(DateTime, default=datetime.utcnow, nullable=False)
-    edited_by = Column(UUID(as_uuid=True), ForeignKey("users.id"), nullable=False)
+    edited_by = Column(UUID(as_uuid=True), ForeignKey("quick_store__users.id"), nullable=False)
     previous_state = Column(JSONB, nullable=False)  # Store previous order state as JSON
 
     # Relationships

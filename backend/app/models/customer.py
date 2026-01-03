@@ -8,10 +8,10 @@ from ..database import Base
 
 
 class CustomerName(Base):
-    __tablename__ = "customer_names"
+    __tablename__ = "quick_store__customer_names"
 
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    store_id = Column(UUID(as_uuid=True), ForeignKey("stores.id", ondelete="CASCADE"), nullable=False, index=True)
+    store_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__stores.id", ondelete="CASCADE"), nullable=False, index=True)
     name = Column(String, nullable=False)
     last_used = Column(DateTime, default=datetime.utcnow, nullable=False)
 
