@@ -6,6 +6,7 @@ from .combo import Combo, ComboItem
 from .order import Order, OrderItem, OrderEditHistory
 from .session import Session
 from .customer import CustomerName
+from .unit import Unit
 
 __all__ = [
     "User",
@@ -19,4 +20,5 @@ __all__ = [
     "OrderEditHistory",
     "Session",
     "CustomerName",
+    "Unit",
 ]

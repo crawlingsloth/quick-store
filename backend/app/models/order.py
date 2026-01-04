@@ -33,8 +33,13 @@ class OrderItem(Base):
     order_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__orders.id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__products.id", ondelete="SET NULL"), nullable=True)
     product_name = Column(String, nullable=False)  # Snapshot for history
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Numeric(14, 4), nullable=False)
     price = Column(Numeric(10, 2), nullable=False)  # Snapshot for history
+
+    # Unit system fields (snapshots for historical accuracy)
+    sold_in_unit = Column(String(10), nullable=True)  # Unit used at sale time
+    base_unit = Column(String(10), nullable=True)     # Product's base unit (snapshot)
+    quantity_in_base = Column(Numeric(14, 4), nullable=True)  # Converted to base unit
 
     # Relationships
     order = relationship("Order", back_populates="items")

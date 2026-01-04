@@ -3,7 +3,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 
 from ..database import get_db
-from ..models import Product, Store
+from ..models import Product, Store, Unit
 from ..schemas.product import ProductCreate, ProductUpdate, ProductResponse
 from ..dependencies import get_current_store
 
@@ -17,12 +17,23 @@ async def create_product(
     db: Session = Depends(get_db)
 ):
     """Create a new product"""
+    # Validate base_unit if provided
+    if product_data.base_unit:
+        unit = db.query(Unit).filter(Unit.code == product_data.base_unit).first()
+        if not unit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid unit code: {product_data.base_unit}"
+            )
+
     product = Product(
         store_id=store.id,
         name=product_data.name,
         price=product_data.price,
         category=product_data.category,
-        inventory=product_data.inventory if store.track_inventory else None
+        inventory=product_data.inventory if store.track_inventory else None,
+        base_unit=product_data.base_unit,
+        price_per_unit=product_data.price_per_unit
     )
     db.add(product)
     db.commit()
@@ -80,6 +91,16 @@ async def update_product(
     if not product:
         raise HTTPException(status_code=404, detail="Product not found")
 
+    # Validate base_unit if provided
+    if product_data.base_unit is not None:
+        unit = db.query(Unit).filter(Unit.code == product_data.base_unit).first()
+        if not unit:
+            raise HTTPException(
+                status_code=status.HTTP_400_BAD_REQUEST,
+                detail=f"Invalid unit code: {product_data.base_unit}"
+            )
+        product.base_unit = product_data.base_unit
+
     if product_data.name is not None:
         product.name = product_data.name
     if product_data.price is not None:
@@ -94,6 +115,8 @@ async def update_product(
                 status_code=status.HTTP_400_BAD_REQUEST,
                 detail="Inventory tracking is not enabled for this store"
             )
+    if product_data.price_per_unit is not None:
+        product.price_per_unit = product_data.price_per_unit
 
     db.commit()
     db.refresh(product)

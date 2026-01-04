@@ -7,21 +7,27 @@ from datetime import date as date_type
 from decimal import Decimal
 
 from ..database import get_db
-from ..models import Order, OrderItem, OrderEditHistory, Product, Store, User, CustomerName
+from ..models import Order, OrderItem, OrderEditHistory, Product, Store, User, CustomerName, Unit
 from ..schemas.order import OrderCreate, OrderUpdate, OrderResponse, BulkUpdatePaymentRequest, BulkUpdatePaymentResponse, BulkUpdateResult
 from ..dependencies import get_current_store, get_current_user
+from ..services.unit_service import UnitService
 
 router = APIRouter(prefix="/api/orders", tags=["Orders"])
 
 
-def update_inventory(db: Session, product_id: str, quantity_change: int, store: Store):
-    """Helper function to update product inventory"""
+def update_inventory(db: Session, product_id: str, quantity_change: Decimal, store: Store, sold_in_unit: Optional[str] = None):
+    """Helper function to update product inventory with unit conversion support"""
     if not store.track_inventory:
         return
 
     product = db.query(Product).filter(Product.id == product_id).first()
     if product and product.inventory is not None:
-        product.inventory += quantity_change
+        # Convert quantity to base unit if needed
+        change_in_base = quantity_change
+        if product.base_unit and sold_in_unit and sold_in_unit != product.base_unit:
+            change_in_base = UnitService.convert(quantity_change, sold_in_unit, product.base_unit, db)
+
+        product.inventory += change_in_base
         if product.inventory < 0:
             raise HTTPException(
                 status_code=status.HTTP_400_BAD_REQUEST,
@@ -80,14 +86,40 @@ async def create_order(
     for item_data in order_data.items:
         product = product_map[str(item_data.product_id)]
 
+        # Determine selling unit (from request or product's base_unit or None)
+        sold_in_unit = item_data.unit if item_data.unit else product.base_unit
+
+        # Validate unit if provided
+        if sold_in_unit:
+            unit = db.query(Unit).filter(Unit.code == sold_in_unit).first()
+            if not unit:
+                raise HTTPException(
+                    status_code=status.HTTP_400_BAD_REQUEST,
+                    detail=f"Invalid unit code: {sold_in_unit}"
+                )
+
+            # If product has a base unit, validate compatibility
+            if product.base_unit:
+                if not UnitService.are_compatible(sold_in_unit, product.base_unit, db):
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Unit {sold_in_unit} is not compatible with product base unit {product.base_unit}"
+                    )
+
+        # Convert quantity to base unit for inventory check
+        quantity_in_base = item_data.quantity
+        if product.base_unit and sold_in_unit and sold_in_unit != product.base_unit:
+            quantity_in_base = UnitService.convert(item_data.quantity, sold_in_unit, product.base_unit, db)
+
         # Check inventory before creating order
         if store.track_inventory and product.inventory is not None:
-            if product.inventory < item_data.quantity:
+            if product.inventory < quantity_in_base:
                 raise HTTPException(
                     status_code=status.HTTP_400_BAD_REQUEST,
                     detail=f"Insufficient inventory for product: {product.name}"
                 )
 
+        # Calculate item total (use product.price as-is, since it represents the sale price)
         item_total = product.price * item_data.quantity
         total += item_total
 
@@ -95,7 +127,10 @@ async def create_order(
             "product_id": item_data.product_id,
             "product_name": product.name,
             "quantity": item_data.quantity,
-            "price": product.price
+            "price": product.price,
+            "sold_in_unit": sold_in_unit,
+            "base_unit": product.base_unit,
+            "quantity_in_base": quantity_in_base
         })
 
     # Create order
@@ -116,12 +151,15 @@ async def create_order(
             product_id=item_data["product_id"],
             product_name=item_data["product_name"],
             quantity=item_data["quantity"],
-            price=item_data["price"]
+            price=item_data["price"],
+            sold_in_unit=item_data["sold_in_unit"],
+            base_unit=item_data["base_unit"],
+            quantity_in_base=item_data["quantity_in_base"]
         )
         db.add(order_item)
 
-        # Update inventory (deduct)
-        update_inventory(db, str(item_data["product_id"]), -item_data["quantity"], store)
+        # Update inventory (deduct) - pass quantity_in_base directly since it's already converted
+        update_inventory(db, str(item_data["product_id"]), -item_data["quantity_in_base"], store)
 
     # Save customer name
     save_customer_name(db, order_data.customer_name, str(store.id))
@@ -237,10 +275,11 @@ async def update_order(
     # Update items if provided
     if order_data.items is not None:
         content_edited = True
-        # Restore inventory from old order items
+        # Restore inventory from old order items (use quantity_in_base if available)
         for old_item in order.items:
             if old_item.product_id:
-                update_inventory(db, str(old_item.product_id), old_item.quantity, store)
+                restore_quantity = old_item.quantity_in_base if old_item.quantity_in_base else old_item.quantity
+                update_inventory(db, str(old_item.product_id), restore_quantity, store)
 
         # Verify all new products exist
         product_ids = [item.product_id for item in order_data.items]
@@ -265,13 +304,38 @@ async def update_order(
         for item_data in order_data.items:
             product = product_map[str(item_data.product_id)]
 
+            # Determine selling unit (from request or product's base_unit or None)
+            sold_in_unit = item_data.unit if item_data.unit else product.base_unit
+
+            # Validate unit if provided
+            if sold_in_unit:
+                unit = db.query(Unit).filter(Unit.code == sold_in_unit).first()
+                if not unit:
+                    raise HTTPException(
+                        status_code=status.HTTP_400_BAD_REQUEST,
+                        detail=f"Invalid unit code: {sold_in_unit}"
+                    )
+
+                # If product has a base unit, validate compatibility
+                if product.base_unit:
+                    if not UnitService.are_compatible(sold_in_unit, product.base_unit, db):
+                        raise HTTPException(
+                            status_code=status.HTTP_400_BAD_REQUEST,
+                            detail=f"Unit {sold_in_unit} is not compatible with product base unit {product.base_unit}"
+                        )
+
+            # Convert quantity to base unit for inventory check
+            quantity_in_base = item_data.quantity
+            if product.base_unit and sold_in_unit and sold_in_unit != product.base_unit:
+                quantity_in_base = UnitService.convert(item_data.quantity, sold_in_unit, product.base_unit, db)
+
             # Check inventory
             if store.track_inventory and product.inventory is not None:
-                if product.inventory < item_data.quantity:
+                if product.inventory < quantity_in_base:
                     # Restore inventory before raising error
                     for old_item in order.items:
                         if old_item.product_id:
-                            update_inventory(db, str(old_item.product_id), -old_item.quantity, store)
+                            update_inventory(db, str(old_item.product_id), old_item.quantity_in_base if old_item.quantity_in_base else old_item.quantity, store)
                     raise HTTPException(
                         status_code=status.HTTP_400_BAD_REQUEST,
                         detail=f"Insufficient inventory for product: {product.name}"
@@ -284,7 +348,10 @@ async def update_order(
                 "product_id": item_data.product_id,
                 "product_name": product.name,
                 "quantity": item_data.quantity,
-                "price": product.price
+                "price": product.price,
+                "sold_in_unit": sold_in_unit,
+                "base_unit": product.base_unit,
+                "quantity_in_base": quantity_in_base
             })
 
         # Delete old order items
@@ -297,12 +364,15 @@ async def update_order(
                 product_id=item_data["product_id"],
                 product_name=item_data["product_name"],
                 quantity=item_data["quantity"],
-                price=item_data["price"]
+                price=item_data["price"],
+                sold_in_unit=item_data["sold_in_unit"],
+                base_unit=item_data["base_unit"],
+                quantity_in_base=item_data["quantity_in_base"]
             )
             db.add(order_item)
 
-            # Update inventory (deduct)
-            update_inventory(db, str(item_data["product_id"]), -item_data["quantity"], store)
+            # Update inventory (deduct) - use quantity_in_base since it's already converted
+            update_inventory(db, str(item_data["product_id"]), -item_data["quantity_in_base"], store)
 
         order.total = total
 
@@ -402,10 +472,11 @@ async def delete_order(
     if not order:
         raise HTTPException(status_code=404, detail="Order not found")
 
-    # Restore inventory before deleting
+    # Restore inventory before deleting (use quantity_in_base if available)
     for item in order.items:
         if item.product_id:
-            update_inventory(db, str(item.product_id), item.quantity, store)
+            restore_quantity = item.quantity_in_base if item.quantity_in_base else item.quantity
+            update_inventory(db, str(item.product_id), restore_quantity, store)
 
     db.delete(order)
     db.commit()

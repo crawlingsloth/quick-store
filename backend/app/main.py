@@ -11,6 +11,7 @@ from .routers import (
     orders_router,
     sessions_router,
     customers_router,
+    units_router,
 )
 
 app = FastAPI(
@@ -37,6 +38,7 @@ app.include_router(combos_router)
 app.include_router(orders_router)
 app.include_router(sessions_router)
 app.include_router(customers_router)
+app.include_router(units_router)
 
 
 @app.get("/")

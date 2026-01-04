@@ -7,15 +7,19 @@ from decimal import Decimal
 
 class OrderItemCreate(BaseModel):
     product_id: UUID
-    quantity: int = Field(..., ge=1)
+    quantity: Decimal = Field(..., ge=Decimal('0.0001'), decimal_places=4)
+    unit: Optional[str] = Field(None, max_length=10)
 
 
 class OrderItemResponse(BaseModel):
     id: UUID
     product_id: Optional[UUID]
     product_name: str
-    quantity: int
+    quantity: Decimal
     price: Decimal
+    sold_in_unit: Optional[str] = None
+    base_unit: Optional[str] = None
+    quantity_in_base: Optional[Decimal] = None
 
     class Config:
         from_attributes = True

@@ -4,8 +4,9 @@
  * Manages products with async API operations
  */
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useApp } from '../context/AppContext';
+import api from '../services/api';
 import './ProductsTab.css';
 
 const ProductsTab = () => {
@@ -26,15 +27,37 @@ const ProductsTab = () => {
   const [editingProduct, setEditingProduct] = useState(null);
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [units, setUnits] = useState([]);
+  const [unitsLoading, setUnitsLoading] = useState(false);
 
   const [formData, setFormData] = useState({
     name: '',
     price: '',
     category: '',
     inventory: '',
+    base_unit: '',
+    price_per_unit: '',
   });
 
   const store = getCurrentStore();
+
+  // Fetch available units on component mount
+  useEffect(() => {
+    const fetchUnits = async () => {
+      setUnitsLoading(true);
+      try {
+        const response = await api.get('/units');
+        setUnits(response.data);
+      } catch (error) {
+        console.error('Failed to fetch units:', error);
+      } finally {
+        setUnitsLoading(false);
+      }
+    };
+
+    fetchUnits();
+  }, []);
+
   if (!store) return null;
 
   const handleAddProduct = async (e) => {
@@ -46,6 +69,8 @@ const ProductsTab = () => {
       name: formData.name,
       price: formData.price,
       category: formData.category || null,
+      base_unit: formData.base_unit || null,
+      price_per_unit: formData.price_per_unit || null,
     };
 
     if (store.track_inventory && formData.inventory) {
@@ -75,6 +100,8 @@ const ProductsTab = () => {
       name: formData.name,
       price: formData.price,
       category: formData.category || null,
+      base_unit: formData.base_unit || null,
+      price_per_unit: formData.price_per_unit || null,
     };
 
     if (store.track_inventory) {
@@ -116,6 +143,8 @@ const ProductsTab = () => {
       price: product.price.toString(),
       category: product.category || '',
       inventory: product.inventory !== undefined && product.inventory !== null ? product.inventory.toString() : '',
+      base_unit: product.base_unit || '',
+      price_per_unit: product.price_per_unit !== undefined && product.price_per_unit !== null ? product.price_per_unit.toString() : '',
     });
     setShowEditModal(true);
     setActionError('');
@@ -127,6 +156,8 @@ const ProductsTab = () => {
       price: '',
       category: '',
       inventory: '',
+      base_unit: '',
+      price_per_unit: '',
     });
   };
 
@@ -212,12 +243,18 @@ const ProductsTab = () => {
                     <div className="product-price">
                       {currencySymbol}
                       {parseFloat(product.price).toFixed(2)}
+                      {product.base_unit && ` (${product.base_unit})`}
                     </div>
+                    {product.price_per_unit && (
+                      <div className="product-unit-price">
+                        {currencySymbol}{parseFloat(product.price_per_unit).toFixed(2)}/{product.base_unit}
+                      </div>
+                    )}
                     {store.track_inventory && product.inventory !== null && product.inventory !== undefined && (
                       <div
                         className={`product-inventory ${product.inventory < 10 ? 'low-stock' : ''}`}
                       >
-                        Stock: {product.inventory}
+                        Stock: {parseFloat(product.inventory).toFixed(4)} {product.base_unit || ''}
                         {product.inventory < 10 && ' ⚠️'}
                       </div>
                     )}
@@ -289,12 +326,72 @@ const ProductsTab = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label htmlFor="productBaseUnit">Unit (optional)</label>
+                <select
+                  id="productBaseUnit"
+                  value={formData.base_unit}
+                  onChange={(e) => setFormData({ ...formData, base_unit: e.target.value })}
+                  disabled={actionLoading || unitsLoading}
+                >
+                  <option value="">None (unitless)</option>
+                  <optgroup label="Weight">
+                    {units.filter(u => u.type === 'weight').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Volume">
+                    {units.filter(u => u.type === 'volume').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Count">
+                    {units.filter(u => u.type === 'count').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Length">
+                    {units.filter(u => u.type === 'length').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {formData.base_unit && (
+                <div className="form-group">
+                  <label htmlFor="productPricePerUnit">
+                    Price per {units.find(u => u.code === formData.base_unit)?.symbol} (optional)
+                  </label>
+                  <input
+                    id="productPricePerUnit"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price_per_unit}
+                    onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
+                    disabled={actionLoading}
+                  />
+                </div>
+              )}
+
               {store.track_inventory && (
                 <div className="form-group">
-                  <label htmlFor="productInventory">Initial Stock</label>
+                  <label htmlFor="productInventory">
+                    Initial Stock{formData.base_unit ? ` (${units.find(u => u.code === formData.base_unit)?.symbol})` : ''}
+                  </label>
                   <input
                     id="productInventory"
                     type="number"
+                    step="0.0001"
                     min="0"
                     value={formData.inventory}
                     onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}
@@ -374,12 +471,72 @@ const ProductsTab = () => {
                 />
               </div>
 
+              <div className="form-group">
+                <label htmlFor="editProductBaseUnit">Unit (optional)</label>
+                <select
+                  id="editProductBaseUnit"
+                  value={formData.base_unit}
+                  onChange={(e) => setFormData({ ...formData, base_unit: e.target.value })}
+                  disabled={actionLoading || unitsLoading}
+                >
+                  <option value="">None (unitless)</option>
+                  <optgroup label="Weight">
+                    {units.filter(u => u.type === 'weight').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Volume">
+                    {units.filter(u => u.type === 'volume').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Count">
+                    {units.filter(u => u.type === 'count').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                  <optgroup label="Length">
+                    {units.filter(u => u.type === 'length').map(unit => (
+                      <option key={unit.code} value={unit.code}>
+                        {unit.name} ({unit.symbol})
+                      </option>
+                    ))}
+                  </optgroup>
+                </select>
+              </div>
+
+              {formData.base_unit && (
+                <div className="form-group">
+                  <label htmlFor="editProductPricePerUnit">
+                    Price per {units.find(u => u.code === formData.base_unit)?.symbol} (optional)
+                  </label>
+                  <input
+                    id="editProductPricePerUnit"
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={formData.price_per_unit}
+                    onChange={(e) => setFormData({ ...formData, price_per_unit: e.target.value })}
+                    disabled={actionLoading}
+                  />
+                </div>
+              )}
+
               {store.track_inventory && (
                 <div className="form-group">
-                  <label htmlFor="editProductInventory">Stock</label>
+                  <label htmlFor="editProductInventory">
+                    Stock{formData.base_unit ? ` (${units.find(u => u.code === formData.base_unit)?.symbol})` : ''}
+                  </label>
                   <input
                     id="editProductInventory"
                     type="number"
+                    step="0.0001"
                     min="0"
                     value={formData.inventory}
                     onChange={(e) => setFormData({ ...formData, inventory: e.target.value })}

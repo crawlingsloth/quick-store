@@ -27,7 +27,7 @@ class ComboItem(Base):
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     combo_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__combos.id", ondelete="CASCADE"), nullable=False, index=True)
     product_id = Column(UUID(as_uuid=True), ForeignKey("quick_store__products.id", ondelete="CASCADE"), nullable=False)
-    quantity = Column(Integer, nullable=False)
+    quantity = Column(Numeric(14, 4), nullable=False)
 
     # Relationships
     combo = relationship("Combo", back_populates="items")
