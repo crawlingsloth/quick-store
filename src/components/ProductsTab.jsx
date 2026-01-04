@@ -46,8 +46,8 @@ const ProductsTab = () => {
     const fetchUnits = async () => {
       setUnitsLoading(true);
       try {
-        const response = await api.get('/units');
-        setUnits(response.data);
+        const units = await api.listUnits();
+        setUnits(units);
       } catch (error) {
         console.error('Failed to fetch units:', error);
       } finally {

@@ -523,6 +523,37 @@ const api = {
   getCustomerNames: async () => {
     return await request('/api/customers/names');
   },
+
+  // ============ Units ============
+
+  /**
+   * List all available units
+   */
+  listUnits: async (type = null) => {
+    const params = type ? `?type=${encodeURIComponent(type)}` : '';
+    return await request(`/api/units${params}`);
+  },
+
+  /**
+   * Get a specific unit
+   */
+  getUnit: async (unitCode) => {
+    return await request(`/api/units/${unitCode}`);
+  },
+
+  /**
+   * Convert quantity between units
+   */
+  convertUnits: async (quantity, fromUnit, toUnit) => {
+    return await request('/api/units/convert', {
+      method: 'POST',
+      body: JSON.stringify({
+        quantity: quantity.toString(),
+        from_unit: fromUnit,
+        to_unit: toUnit,
+      }),
+    });
+  },
 };
 
 export default api;
