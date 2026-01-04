@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 from typing import Optional
 from datetime import datetime
 from uuid import UUID
@@ -13,6 +13,14 @@ class ProductBase(BaseModel):
     base_unit: Optional[str] = Field(None, max_length=10)
     price_per_unit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
 
+    @field_validator('category', 'base_unit', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None for optional string fields"""
+        if v == '' or v == 'null':
+            return None
+        return v
+
 
 class ProductCreate(ProductBase):
     pass
@@ -25,6 +33,14 @@ class ProductUpdate(BaseModel):
     inventory: Optional[Decimal] = Field(None, ge=0, decimal_places=4)
     base_unit: Optional[str] = Field(None, max_length=10)
     price_per_unit: Optional[Decimal] = Field(None, ge=0, decimal_places=2)
+
+    @field_validator('category', 'base_unit', mode='before')
+    @classmethod
+    def empty_str_to_none(cls, v):
+        """Convert empty strings to None for optional string fields"""
+        if v == '' or v == 'null':
+            return None
+        return v
 
 
 class ProductResponse(ProductBase):
