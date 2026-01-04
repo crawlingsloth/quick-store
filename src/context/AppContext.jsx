@@ -227,7 +227,9 @@ export const AppProvider = ({ children }) => {
         name: product.name,
         price: parseFloat(product.price),
         category: product.category || null,
-        inventory: product.inventory !== undefined ? parseInt(product.inventory) : null,
+        base_unit: product.base_unit || null,
+        price_per_unit: product.price_per_unit ? parseFloat(product.price_per_unit) : null,
+        inventory: product.inventory !== undefined ? parseFloat(product.inventory) : null,
       });
 
       setProducts((prev) => [...prev, newProduct]);
@@ -249,7 +251,9 @@ export const AppProvider = ({ children }) => {
         name: updates.name,
         price: parseFloat(updates.price),
         category: updates.category || null,
-        inventory: updates.inventory !== undefined ? parseInt(updates.inventory) : null,
+        base_unit: updates.base_unit || null,
+        price_per_unit: updates.price_per_unit ? parseFloat(updates.price_per_unit) : null,
+        inventory: updates.inventory !== undefined ? parseFloat(updates.inventory) : null,
       });
 
       setProducts((prev) =>
