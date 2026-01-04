@@ -94,7 +94,7 @@ const SellTab = () => {
 
   const handleQuantitySubmit = (e) => {
     e.preventDefault();
-    const quantity = parseInt(customQuantity);
+    const quantity = parseFloat(customQuantity);
     if (quantity > 0 && selectedProduct) {
       addToCart(selectedProduct, quantity);
     }
@@ -234,10 +234,11 @@ const SellTab = () => {
                           <div className="product-btn-price">
                             {currencySymbol}
                             {parseFloat(product.price).toFixed(2)}
+                            {product.base_unit && ` (${product.base_unit})`}
                           </div>
                           {stock !== null && stock !== undefined && (
                             <div className={`product-btn-stock ${stock < 10 ? 'low' : ''}`}>
-                              {stock > 0 ? `${stock} left` : 'Out of stock'}
+                              {stock > 0 ? `${parseFloat(stock).toFixed(2)} ${product.base_unit || ''} left` : 'Out of stock'}
                             </div>
                           )}
                         </button>
@@ -266,21 +267,21 @@ const SellTab = () => {
                       <div className="cart-item-name">{item.product_name}</div>
                       <div className="cart-item-price">
                         {currencySymbol}
-                        {parseFloat(item.price).toFixed(2)} × {item.quantity}
+                        {parseFloat(item.price).toFixed(2)} × {parseFloat(item.quantity).toFixed(4)} {item.unit || ''}
                       </div>
                     </div>
                     <div className="cart-item-controls">
                       <button
                         className="qty-btn"
-                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity - 1)}
+                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity - (item.unit ? 0.1 : 1))}
                         disabled={actionLoading}
                       >
                         −
                       </button>
-                      <span className="qty-display">{item.quantity}</span>
+                      <span className="qty-display">{parseFloat(item.quantity).toFixed(item.unit ? 2 : 0)}</span>
                       <button
                         className="qty-btn"
-                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity + 1)}
+                        onClick={() => updateCartItemQuantity(item.product_id, item.quantity + (item.unit ? 0.1 : 1))}
                         disabled={actionLoading}
                       >
                         +
@@ -325,11 +326,14 @@ const SellTab = () => {
             <p className="product-modal-name">{selectedProduct.name}</p>
             <form onSubmit={handleQuantitySubmit}>
               <div className="form-group">
-                <label htmlFor="quantity">Quantity</label>
+                <label htmlFor="quantity">
+                  Quantity{selectedProduct.base_unit && ` (${selectedProduct.base_unit})`}
+                </label>
                 <input
                   id="quantity"
                   type="number"
-                  min="1"
+                  step="0.0001"
+                  min="0.0001"
                   value={customQuantity}
                   onChange={(e) => setCustomQuantity(e.target.value)}
                   autoFocus
@@ -365,7 +369,7 @@ const SellTab = () => {
                   <div key={item.product_id} className="checkout-item">
                     <span>{item.product_name}</span>
                     <span>
-                      × {item.quantity} = {currencySymbol}
+                      × {parseFloat(item.quantity).toFixed(4)} {item.unit || ''} = {currencySymbol}
                       {(parseFloat(item.price) * item.quantity).toFixed(2)}
                     </span>
                   </div>

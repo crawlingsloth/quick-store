@@ -362,7 +362,7 @@ export const AppProvider = ({ children }) => {
 
   // ============ CART OPERATIONS ============
 
-  const addToCart = (product, quantity = 1) => {
+  const addToCart = (product, quantity = 1, unit = null) => {
     setCart((prevCart) => {
       const existingItem = prevCart.find((item) => item.product_id === product.id);
       if (existingItem) {
@@ -379,6 +379,8 @@ export const AppProvider = ({ children }) => {
             product_name: product.name,
             price: product.price,
             quantity,
+            unit: unit || product.base_unit || null,
+            base_unit: product.base_unit || null,
           },
         ];
       }
