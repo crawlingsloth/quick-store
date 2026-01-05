@@ -278,7 +278,21 @@ const SellTab = () => {
                       >
                         −
                       </button>
-                      <span className="qty-display">{parseFloat(item.quantity).toFixed(item.unit ? 2 : 0)}</span>
+                      <input
+                        type="number"
+                        className="qty-input"
+                        step={item.unit ? "0.0001" : "1"}
+                        min="0.0001"
+                        value={parseFloat(item.quantity).toFixed(item.unit ? 4 : 0)}
+                        onChange={(e) => {
+                          const newQty = parseFloat(e.target.value);
+                          if (newQty > 0) {
+                            updateCartItemQuantity(item.product_id, newQty);
+                          }
+                        }}
+                        onFocus={(e) => e.target.select()}
+                        disabled={actionLoading}
+                      />
                       <button
                         className="qty-btn"
                         onClick={() => updateCartItemQuantity(item.product_id, item.quantity + (item.unit ? 0.1 : 1))}
