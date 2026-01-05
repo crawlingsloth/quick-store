@@ -36,6 +36,7 @@ const SellTab = () => {
   const [customQuantity, setCustomQuantity] = useState('1');
   const [actionLoading, setActionLoading] = useState(false);
   const [actionError, setActionError] = useState('');
+  const [editingQuantity, setEditingQuantity] = useState(null); // Track which item is being edited
 
   const longPressTimer = useRef(null);
   const longPressTriggered = useRef(false);
@@ -283,14 +284,38 @@ const SellTab = () => {
                         className="qty-input"
                         step={item.unit ? "0.0001" : "1"}
                         min="0.0001"
-                        value={parseFloat(item.quantity).toFixed(item.unit ? 4 : 0)}
+                        value={
+                          editingQuantity?.id === item.product_id
+                            ? editingQuantity.value
+                            : parseFloat(item.quantity).toFixed(item.unit ? 4 : 0)
+                        }
                         onChange={(e) => {
+                          // While editing, just update local state
+                          setEditingQuantity({
+                            id: item.product_id,
+                            value: e.target.value
+                          });
+                        }}
+                        onFocus={(e) => {
+                          e.target.select();
+                          setEditingQuantity({
+                            id: item.product_id,
+                            value: e.target.value
+                          });
+                        }}
+                        onBlur={(e) => {
+                          // On blur, parse and update cart
                           const newQty = parseFloat(e.target.value);
                           if (newQty > 0) {
                             updateCartItemQuantity(item.product_id, newQty);
                           }
+                          setEditingQuantity(null);
                         }}
-                        onFocus={(e) => e.target.select()}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter') {
+                            e.target.blur(); // Trigger onBlur
+                          }
+                        }}
                         disabled={actionLoading}
                       />
                       <button
